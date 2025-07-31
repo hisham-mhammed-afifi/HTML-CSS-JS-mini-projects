@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Catch the Square - Reflex Game</title>
+    <style>
+      /* Reset and base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      /* Game container */
+      .game-container {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        max-width: 660px;
+        width: 100%;
+      }
+
+      /* Game header with score and timer */
+      .game-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        font-size: 24px;
+        font-weight: bold;
+      }
+
+      .score {
+        color: #2ecc71;
+      }
+
+      .timer {
+        color: #e74c3c;
+      }
+
+      /* Game area where the square appears */
+      .game-area {
+        width: 100%;
+        max-width: 600px;
+        height: 400px;
+        background-color: #ecf0f1;
+        border: 2px solid #bdc3c7;
+        border-radius: 8px;
+        position: relative;
+        margin: 0 auto 20px;
+        cursor: crosshair;
+        overflow: hidden;
+      }
+
+      /* The red square target */
+      .square {
+        width: 50px;
+        height: 50px;
+        background-color: #e74c3c;
+        position: absolute;
+        border-radius: 4px;
+        cursor: pointer;
+        /* Animation for square appearance */
+        animation: squareAppear 0.3s ease-out;
+        transition: transform 0.1s ease-out;
+      }
+
+      .square:hover {
+        transform: scale(1.1);
+      }
+
+      /* Bounce animation when square appears */
+      @keyframes squareAppear {
+        0% {
+          transform: scale(0);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.2);
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      /* Game controls */
+      .game-controls {
+        text-align: center;
+      }
+
+      .btn {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        font-size: 18px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      .btn:hover {
+        background-color: #2980b9;
+      }
+
+      .btn:disabled {
+        background-color: #95a5a6;
+        cursor: not-allowed;
+      }
+
+      /* Game over message */
+      .game-over {
+        text-align: center;
+        font-size: 28px;
+        font-weight: bold;
+        color: #e74c3c;
+        margin-bottom: 10px;
+        display: none;
+      }
+
+      .final-score {
+        text-align: center;
+        font-size: 20px;
+        color: #2ecc71;
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 480px) {
+        .game-area {
+          height: 300px;
+        }
+
+        .game-header {
+          font-size: 20px;
+        }
+
+        .btn {
+          padding: 12px 24px;
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-container">
+      <!-- Game header showing score and timer -->
+      <div class="game-header">
+        <div class="score">Score: <span id="score">0</span></div>
+        <div class="timer">Time: <span id="timer">30</span>s</div>
+      </div>
+
+      <!-- Game area where the square appears -->
+      <div class="game-area" id="gameArea"></div>
+
+      <!-- Game over message (hidden initially) -->
+      <div class="game-over" id="gameOver">Game Over!</div>
+      <div class="final-score" id="finalScore"></div>
+
+      <!-- Game controls -->
+      <div class="game-controls">
+        <button class="btn" id="startBtn" onclick="startGame()">
+          Start Game
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // Game state variables
+      let score = 0;
+      let timeRemaining = 30;
+      let gameInterval = null;
+      let timerInterval = null;
+      let isGameActive = false;
+
+      // DOM elements
+      const gameArea = document.getElementById("gameArea");
+      const scoreElement = document.getElementById("score");
+      const timerElement = document.getElementById("timer");
+      const startBtn = document.getElementById("startBtn");
+      const gameOverElement = document.getElementById("gameOver");
+      const finalScoreElement = document.getElementById("finalScore");
+
+      // Start the game
+      function startGame() {
+        // Reset game state
+        score = 0;
+        timeRemaining = 30;
+        isGameActive = true;
+
+        // Update UI
+        scoreElement.textContent = score;
+        timerElement.textContent = timeRemaining;
+        startBtn.disabled = true;
+        gameOverElement.style.display = "none";
+        finalScoreElement.style.display = "none";
+
+        // Clear any existing squares
+        gameArea.innerHTML = "";
+
+        // Start spawning squares
+        spawnSquare();
+        gameInterval = setInterval(spawnSquare, 800);
+
+        // Start countdown timer
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+
+      // Update the countdown timer
+      function updateTimer() {
+        timeRemaining--;
+        timerElement.textContent = timeRemaining;
+
+        // End game when time runs out
+        if (timeRemaining <= 0) {
+          endGame();
+        }
+      }
+
+      // End the game
+      function endGame() {
+        isGameActive = false;
+
+        // Clear intervals
+        clearInterval(gameInterval);
+        clearInterval(timerInterval);
+
+        // Clear any remaining squares
+        gameArea.innerHTML = "";
+
+        // Show game over message
+        gameOverElement.style.display = "block";
+        finalScoreElement.style.display = "block";
+        finalScoreElement.textContent = `Final Score: ${score}`;
+
+        // Re-enable start button
+        startBtn.disabled = false;
+        startBtn.textContent = "Play Again";
+      }
+
+      // Spawn a new square at a random position
+      function spawnSquare() {
+        if (!isGameActive) return;
+
+        // Remove any existing square
+        const existingSquare = gameArea.querySelector(".square");
+        if (existingSquare) {
+          existingSquare.remove();
+        }
+
+        // Create new square
+        const square = document.createElement("div");
+        square.className = "square";
+
+        // Calculate random position (ensuring square stays within bounds)
+        const maxX = gameArea.offsetWidth - 50; // 50px is square width
+        const maxY = gameArea.offsetHeight - 50; // 50px is square height
+        const randomX = Math.floor(Math.random() * maxX);
+        const randomY = Math.floor(Math.random() * maxY);
+
+        // Set position
+        square.style.left = randomX + "px";
+        square.style.top = randomY + "px";
+
+        // Add click handler
+        square.addEventListener("click", handleSquareClick);
+
+        // Add to game area
+        gameArea.appendChild(square);
+      }
+
+      // Handle clicking on the square
+      function handleSquareClick(event) {
+        if (!isGameActive) return;
+
+        // Prevent event from bubbling to game area
+        event.stopPropagation();
+
+        // Increase score
+        score++;
+        scoreElement.textContent = score;
+
+        // Remove the clicked square immediately
+        event.target.remove();
+
+        // Spawn new square immediately for better gameplay
+        spawnSquare();
+
+        // Reset the interval to maintain consistent timing
+        clearInterval(gameInterval);
+        gameInterval = setInterval(spawnSquare, 800);
+      }
+
+      // Add click handler to game area for missed clicks
+      gameArea.addEventListener("click", function (event) {
+        // Only count as a miss if clicked directly on game area (not on square)
+        if (event.target === gameArea && isGameActive) {
+          // Optionally, you could decrease score or show a miss indicator
+          // For now, we just don't increase the score
+        }
+      });
+    </script>
+  </body>
+</html>

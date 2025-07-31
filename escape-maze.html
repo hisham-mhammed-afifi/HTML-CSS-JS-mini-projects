@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Escape the Maze - Progressive Challenge</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Arial", sans-serif;
+        background-color: #2c3e50;
+        color: #ecf0f1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .game-container {
+        background-color: #34495e;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .game-header {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .round-display {
+        font-size: 24px;
+        font-weight: bold;
+        color: #f39c12;
+        margin-bottom: 10px;
+      }
+
+      .maze-container {
+        display: grid;
+        background-color: #7f8c8d;
+        border-radius: 5px;
+        margin: 0 auto;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .cell {
+        width: 40px;
+        height: 40px;
+        position: relative;
+        transition: background-color 0.3s ease;
+      }
+
+      .cell.wall {
+        background-color: #2c3e50;
+      }
+
+      .cell.empty {
+        background-color: #ecf0f1;
+      }
+
+      .cell.start {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .cell.goal {
+        background-color: #e74c3c;
+        position: relative;
+      }
+
+      .cell.goal::after {
+        content: "🏁";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+      }
+
+      .player {
+        width: 30px;
+        height: 30px;
+        background-color: #3498db;
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 0.15s ease-out;
+        z-index: 10;
+        box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+      }
+
+      .controls {
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      .btn {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin: 0 5px;
+      }
+
+      .btn:hover {
+        background-color: #2980b9;
+      }
+
+      .message {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 18px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .success-message {
+        color: #27ae60;
+        animation: pulse 1s ease-in-out;
+      }
+
+      .collision-message {
+        color: #e74c3c;
+        animation: shake 0.5s ease-in-out;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
+      }
+
+      .instructions {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 14px;
+        color: #bdc3c7;
+      }
+
+      .mobile-controls {
+        display: none;
+        grid-template-columns: repeat(3, 60px);
+        gap: 5px;
+        margin-top: 20px;
+        justify-content: center;
+      }
+
+      .arrow-btn {
+        width: 60px;
+        height: 60px;
+        background-color: #3498db;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 24px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .arrow-btn:active {
+        background-color: #2980b9;
+      }
+
+      @media (max-width: 768px) {
+        .mobile-controls {
+          display: grid;
+        }
+
+        .cell {
+          width: 30px;
+          height: 30px;
+        }
+
+        .player {
+          width: 22px;
+          height: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-container">
+      <div class="game-header">
+        <h1>🏃 Escape the Maze 🏃</h1>
+        <div class="round-display">Round: <span id="roundNumber">1</span></div>
+        <div class="instructions">
+          Use arrow keys to reach the red goal. Hit a wall? Back to start!
+        </div>
+      </div>
+
+      <div class="maze-container" id="maze"></div>
+
+      <div class="message" id="message"></div>
+
+      <div class="controls">
+        <button class="btn" onclick="game.restart()">Restart Game</button>
+      </div>
+
+      <div class="mobile-controls">
+        <div></div>
+        <button class="arrow-btn" onclick="game.move('up')">↑</button>
+        <div></div>
+        <button class="arrow-btn" onclick="game.move('left')">←</button>
+        <button class="arrow-btn" onclick="game.move('down')">↓</button>
+        <button class="arrow-btn" onclick="game.move('right')">→</button>
+      </div>
+    </div>
+
+    <script>
+      class MazeGame {
+        constructor() {
+          this.round = 1;
+          this.baseSize = 10;
+          this.gridSize = this.baseSize;
+          this.playerPosition = { x: 0, y: 0 };
+          this.goalPosition = { x: 0, y: 0 };
+          this.maze = [];
+          this.isTransitioning = false;
+
+          this.init();
+        }
+
+        init() {
+          this.setupEventListeners();
+          this.startNewRound();
+        }
+
+        setupEventListeners() {
+          // Keyboard controls
+          document.addEventListener("keydown", (e) => {
+            if (this.isTransitioning) return;
+
+            switch (e.key) {
+              case "ArrowUp":
+                e.preventDefault();
+                this.move("up");
+                break;
+              case "ArrowDown":
+                e.preventDefault();
+                this.move("down");
+                break;
+              case "ArrowLeft":
+                e.preventDefault();
+                this.move("left");
+                break;
+              case "ArrowRight":
+                e.preventDefault();
+                this.move("right");
+                break;
+            }
+          });
+        }
+
+        startNewRound() {
+          // Calculate grid size based on round
+          this.gridSize = Math.min(
+            this.baseSize + Math.floor((this.round - 1) * 1.5),
+            20
+          );
+
+          // Generate new maze
+          this.generateMaze();
+          this.renderMaze();
+          this.resetPlayer();
+
+          // Update UI
+          document.getElementById("roundNumber").textContent = this.round;
+          this.showMessage("");
+        }
+
+        generateMaze() {
+          // Initialize maze with all walls
+          this.maze = Array(this.gridSize)
+            .fill(null)
+            .map(() => Array(this.gridSize).fill(1));
+
+          // Set start and goal positions
+          this.playerPosition = { x: 0, y: 0 };
+          this.goalPosition = { x: this.gridSize - 1, y: this.gridSize - 1 };
+
+          // Generate maze using recursive backtracking
+          const visited = Array(this.gridSize)
+            .fill(null)
+            .map(() => Array(this.gridSize).fill(false));
+
+          // Start from (0, 0)
+          this.recursiveBacktrack(0, 0, visited);
+
+          // Ensure start and goal are empty
+          this.maze[0][0] = 0;
+          this.maze[this.gridSize - 1][this.gridSize - 1] = 0;
+
+          // Add some random empty spaces for easier navigation (based on difficulty)
+          const emptySpaces = Math.max(10, 20 - this.round);
+          for (let i = 0; i < emptySpaces; i++) {
+            const x = Math.floor(Math.random() * this.gridSize);
+            const y = Math.floor(Math.random() * this.gridSize);
+            if (
+              (x !== 0 || y !== 0) &&
+              (x !== this.gridSize - 1 || y !== this.gridSize - 1)
+            ) {
+              this.maze[y][x] = 0;
+            }
+          }
+
+          // Ensure there's a path from start to goal
+          this.ensurePathExists();
+        }
+
+        recursiveBacktrack(x, y, visited) {
+          visited[y][x] = true;
+          this.maze[y][x] = 0; // Mark as path
+
+          // Get neighbors in random order
+          const directions = this.shuffleArray([
+            { dx: 0, dy: -2 }, // Up
+            { dx: 2, dy: 0 }, // Right
+            { dx: 0, dy: 2 }, // Down
+            { dx: -2, dy: 0 }, // Left
+          ]);
+
+          for (const dir of directions) {
+            const nx = x + dir.dx;
+            const ny = y + dir.dy;
+
+            if (
+              nx >= 0 &&
+              nx < this.gridSize &&
+              ny >= 0 &&
+              ny < this.gridSize &&
+              !visited[ny][nx]
+            ) {
+              // Carve path to neighbor
+              this.maze[y + dir.dy / 2][x + dir.dx / 2] = 0;
+              this.recursiveBacktrack(nx, ny, visited);
+            }
+          }
+        }
+
+        shuffleArray(array) {
+          const arr = [...array];
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+          return arr;
+        }
+
+        ensurePathExists() {
+          // Use BFS to check if path exists
+          const queue = [{ x: 0, y: 0 }];
+          const visited = Array(this.gridSize)
+            .fill(null)
+            .map(() => Array(this.gridSize).fill(false));
+          visited[0][0] = true;
+
+          while (queue.length > 0) {
+            const { x, y } = queue.shift();
+
+            if (x === this.gridSize - 1 && y === this.gridSize - 1) {
+              return; // Path exists
+            }
+
+            const neighbors = [
+              { x: x + 1, y },
+              { x: x - 1, y },
+              { x, y: y + 1 },
+              { x, y: y - 1 },
+            ];
+
+            for (const { x: nx, y: ny } of neighbors) {
+              if (
+                nx >= 0 &&
+                nx < this.gridSize &&
+                ny >= 0 &&
+                ny < this.gridSize &&
+                !visited[ny][nx] &&
+                this.maze[ny][nx] === 0
+              ) {
+                visited[ny][nx] = true;
+                queue.push({ x: nx, y: ny });
+              }
+            }
+          }
+
+          // If no path exists, carve a simple path
+          this.carvePath();
+        }
+
+        carvePath() {
+          // Carve a simple path from start to goal
+          let x = 0,
+            y = 0;
+
+          while (x < this.gridSize - 1) {
+            this.maze[y][x] = 0;
+            x++;
+          }
+
+          while (y < this.gridSize - 1) {
+            this.maze[y][x] = 0;
+            y++;
+          }
+
+          this.maze[this.gridSize - 1][this.gridSize - 1] = 0;
+        }
+
+        renderMaze() {
+          const mazeContainer = document.getElementById("maze");
+          mazeContainer.innerHTML = "";
+          mazeContainer.style.gridTemplateColumns = `repeat(${this.gridSize}, 40px)`;
+
+          for (let y = 0; y < this.gridSize; y++) {
+            for (let x = 0; x < this.gridSize; x++) {
+              const cell = document.createElement("div");
+              cell.className = "cell";
+              cell.dataset.x = x;
+              cell.dataset.y = y;
+
+              if (x === 0 && y === 0) {
+                cell.classList.add("start");
+              } else if (x === this.gridSize - 1 && y === this.gridSize - 1) {
+                cell.classList.add("goal");
+              } else if (this.maze[y][x] === 1) {
+                cell.classList.add("wall");
+              } else {
+                cell.classList.add("empty");
+              }
+
+              mazeContainer.appendChild(cell);
+            }
+          }
+
+          // Add player
+          const player = document.createElement("div");
+          player.className = "player";
+          player.id = "player";
+          mazeContainer.appendChild(player);
+        }
+
+        resetPlayer() {
+          this.playerPosition = { x: 0, y: 0 };
+          this.updatePlayerPosition();
+        }
+
+        updatePlayerPosition() {
+          const player = document.getElementById("player");
+          const cellSize = 40;
+          const offset = window.innerWidth <= 768 ? 30 : 40;
+
+          player.style.left = `${
+            this.playerPosition.x * offset + offset / 2
+          }px`;
+          player.style.top = `${this.playerPosition.y * offset + offset / 2}px`;
+        }
+
+        move(direction) {
+          if (this.isTransitioning) return;
+
+          const newPos = { ...this.playerPosition };
+
+          switch (direction) {
+            case "up":
+              newPos.y -= 1;
+              break;
+            case "down":
+              newPos.y += 1;
+              break;
+            case "left":
+              newPos.x -= 1;
+              break;
+            case "right":
+              newPos.x += 1;
+              break;
+          }
+
+          // Check boundaries
+          if (
+            newPos.x < 0 ||
+            newPos.x >= this.gridSize ||
+            newPos.y < 0 ||
+            newPos.y >= this.gridSize
+          ) {
+            return;
+          }
+
+          // Check for walls
+          if (this.maze[newPos.y][newPos.x] === 1) {
+            this.showMessage("Ouch! Hit a wall!", "collision-message");
+            setTimeout(() => {
+              this.resetPlayer();
+              this.showMessage("");
+            }, 500);
+            return;
+          }
+
+          // Move player
+          this.playerPosition = newPos;
+          this.updatePlayerPosition();
+
+          // Check if reached goal
+          if (
+            this.playerPosition.x === this.goalPosition.x &&
+            this.playerPosition.y === this.goalPosition.y
+          ) {
+            this.handleRoundComplete();
+          }
+        }
+
+        handleRoundComplete() {
+          this.isTransitioning = true;
+          this.showMessage(
+            `Round ${this.round} Complete! 🎉`,
+            "success-message"
+          );
+
+          setTimeout(() => {
+            this.round++;
+            this.startNewRound();
+            this.isTransitioning = false;
+          }, 2000);
+        }
+
+        showMessage(text, className = "") {
+          const messageEl = document.getElementById("message");
+          messageEl.textContent = text;
+          messageEl.className = "message " + className;
+        }
+
+        restart() {
+          this.round = 1;
+          this.startNewRound();
+        }
+      }
+
+      // Initialize game
+      const game = new MazeGame();
+    </script>
+  </body>
+</html>

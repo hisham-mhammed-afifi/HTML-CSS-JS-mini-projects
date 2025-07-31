@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spy Memory - Test Your Secret Agent Skills</title>
+    <style>
+      /* Import a spy-style font */
+      @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
+
+      /* Global styles and dark theme */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Orbitron", monospace;
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        color: #fff;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      /* Game container */
+      .game-container {
+        text-align: center;
+        max-width: 500px;
+        width: 100%;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 900;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+      }
+
+      .tagline {
+        color: #00ff88;
+        margin-bottom: 30px;
+        font-size: 0.9rem;
+        opacity: 0.8;
+      }
+
+      /* Score tracker */
+      .score-tracker {
+        margin-bottom: 20px;
+        font-size: 1.1rem;
+        color: #00ff88;
+      }
+
+      /* Game grid */
+      .game-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin: 0 auto 30px;
+        max-width: 400px;
+        aspect-ratio: 1;
+      }
+
+      /* Tile styles */
+      .tile {
+        background-color: #2a2a3e;
+        border: 2px solid #444;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Maintain square aspect ratio for tiles */
+      .tile::before {
+        content: "";
+        display: block;
+        padding-bottom: 100%;
+      }
+
+      /* Tile states */
+      .tile:hover:not(.disabled) {
+        transform: scale(1.05);
+        background-color: #3a3a4e;
+        border-color: #666;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+      }
+
+      .tile.highlighted {
+        background-color: #ffd700;
+        border-color: #ffed4e;
+        animation: pulse 0.5s ease-in-out infinite;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
+      }
+
+      .tile.correct {
+        background-color: #00ff88;
+        border-color: #00cc6a;
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.7);
+      }
+
+      .tile.wrong {
+        background-color: #ff3333;
+        border-color: #cc0000;
+        box-shadow: 0 0 20px rgba(255, 51, 51, 0.7);
+        animation: shake 0.5s ease-in-out;
+      }
+
+      .tile.disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+
+      /* Animations */
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
+      }
+
+      /* Button styles */
+      .btn {
+        background-color: #00ff88;
+        color: #0a0a0a;
+        border: none;
+        padding: 15px 40px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        border-radius: 50px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(0, 255, 136, 0.5);
+        background-color: #00cc6a;
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      /* Message area */
+      .message-area {
+        min-height: 60px;
+        margin-top: 20px;
+        font-size: 1.2rem;
+        font-weight: 700;
+      }
+
+      .message-area.success {
+        color: #00ff88;
+        text-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+      }
+
+      .message-area.failure {
+        color: #ff3333;
+        text-shadow: 0 0 15px rgba(255, 51, 51, 0.5);
+      }
+
+      /* Responsive design */
+      @media (max-width: 480px) {
+        h1 {
+          font-size: 2rem;
+        }
+
+        .game-grid {
+          gap: 8px;
+          max-width: 320px;
+        }
+
+        .btn {
+          padding: 12px 30px;
+          font-size: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-container">
+      <h1>Spy Memory</h1>
+      <p class="tagline">Test your secret agent observation skills</p>
+
+      <div class="score-tracker">
+        Successful Missions: <span id="score">0</span>
+      </div>
+
+      <!-- 4x4 grid of tiles -->
+      <div class="game-grid" id="gameGrid">
+        <!-- Tiles will be generated by JavaScript -->
+      </div>
+
+      <button class="btn" id="startBtn">Start Mission</button>
+
+      <div class="message-area" id="messageArea"></div>
+    </div>
+
+    <script>
+      // Game configuration
+      const GRID_SIZE = 16; // 4x4 grid
+      const TILES_TO_REMEMBER = 4; // Number of tiles to highlight
+      const FLASH_DURATION = 3000; // 3 seconds in milliseconds
+
+      // Game state
+      let gameState = {
+        targetTiles: new Set(), // Set of indices for tiles to remember
+        selectedTiles: new Set(), // Set of indices for tiles clicked by player
+        isPlaying: false,
+        score: 0,
+      };
+
+      // DOM elements
+      const gameGrid = document.getElementById("gameGrid");
+      const startBtn = document.getElementById("startBtn");
+      const messageArea = document.getElementById("messageArea");
+      const scoreDisplay = document.getElementById("score");
+
+      // Initialize the game grid
+      function initializeGrid() {
+        gameGrid.innerHTML = ""; // Clear existing tiles
+
+        // Create 16 tiles for 4x4 grid
+        for (let i = 0; i < GRID_SIZE; i++) {
+          const tile = document.createElement("div");
+          tile.className = "tile disabled"; // Start disabled
+          tile.dataset.index = i;
+          tile.addEventListener("click", handleTileClick);
+          gameGrid.appendChild(tile);
+        }
+      }
+
+      // Start a new game
+      function startGame() {
+        // Reset game state
+        gameState.targetTiles.clear();
+        gameState.selectedTiles.clear();
+        gameState.isPlaying = false;
+
+        // Clear messages and reset tiles
+        messageArea.textContent = "";
+        messageArea.className = "message-area";
+        resetTileStyles();
+
+        // Disable all tiles during preview
+        document.querySelectorAll(".tile").forEach((tile) => {
+          tile.classList.add("disabled");
+        });
+
+        // Hide start button
+        startBtn.style.display = "none";
+
+        // Select random tiles to highlight
+        selectRandomTiles();
+
+        // Show the highlighted tiles
+        highlightTargetTiles();
+
+        // After 3 seconds, hide highlights and enable gameplay
+        setTimeout(() => {
+          hideHighlights();
+          enableGameplay();
+          messageArea.textContent = "Click the tiles you remember!";
+        }, FLASH_DURATION);
+      }
+
+      // Select random tiles to be the target
+      function selectRandomTiles() {
+        const availableIndices = Array.from({ length: GRID_SIZE }, (_, i) => i);
+
+        // Shuffle and pick first N tiles
+        for (let i = availableIndices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [availableIndices[i], availableIndices[j]] = [
+            availableIndices[j],
+            availableIndices[i],
+          ];
+        }
+
+        // Add the first TILES_TO_REMEMBER indices to targetTiles
+        for (let i = 0; i < TILES_TO_REMEMBER; i++) {
+          gameState.targetTiles.add(availableIndices[i]);
+        }
+      }
+
+      // Highlight the target tiles
+      function highlightTargetTiles() {
+        gameState.targetTiles.forEach((index) => {
+          const tile = document.querySelector(`[data-index="${index}"]`);
+          tile.classList.add("highlighted");
+        });
+      }
+
+      // Hide all highlights
+      function hideHighlights() {
+        document.querySelectorAll(".tile").forEach((tile) => {
+          tile.classList.remove("highlighted");
+        });
+      }
+
+      // Enable gameplay after preview
+      function enableGameplay() {
+        gameState.isPlaying = true;
+        document.querySelectorAll(".tile").forEach((tile) => {
+          tile.classList.remove("disabled");
+        });
+      }
+
+      // Handle tile clicks
+      function handleTileClick(event) {
+        // Ignore clicks if game not active
+        if (!gameState.isPlaying) return;
+
+        const tile = event.target;
+        const tileIndex = parseInt(tile.dataset.index);
+
+        // Ignore if tile already clicked
+        if (gameState.selectedTiles.has(tileIndex)) return;
+
+        // Add to selected tiles
+        gameState.selectedTiles.add(tileIndex);
+
+        // Check if this tile is correct
+        if (gameState.targetTiles.has(tileIndex)) {
+          tile.classList.add("correct");
+
+          // Check if all target tiles have been found
+          if (gameState.selectedTiles.size === gameState.targetTiles.size) {
+            // All tiles found correctly - success!
+            endGame(true);
+          }
+        } else {
+          // Wrong tile clicked - failure
+          tile.classList.add("wrong");
+          endGame(false);
+        }
+      }
+
+      // End the game
+      function endGame(success) {
+        gameState.isPlaying = false;
+
+        // Disable all tiles
+        document.querySelectorAll(".tile").forEach((tile) => {
+          tile.classList.add("disabled");
+        });
+
+        // Show all target tiles for reference
+        gameState.targetTiles.forEach((index) => {
+          const tile = document.querySelector(`[data-index="${index}"]`);
+          if (!tile.classList.contains("correct")) {
+            tile.classList.add("highlighted");
+          }
+        });
+
+        // Display appropriate message
+        if (success) {
+          gameState.score++;
+          scoreDisplay.textContent = gameState.score;
+          messageArea.textContent =
+            "Mission Complete! Excellent memory, agent.";
+          messageArea.className = "message-area success";
+          startBtn.textContent = "Play Again";
+        } else {
+          messageArea.textContent = "Mission Failed! The enemy escaped.";
+          messageArea.className = "message-area failure";
+          startBtn.textContent = "Try Again";
+        }
+
+        // Show start button again
+        startBtn.style.display = "inline-block";
+      }
+
+      // Reset all tile styles
+      function resetTileStyles() {
+        document.querySelectorAll(".tile").forEach((tile) => {
+          tile.className = "tile disabled";
+        });
+      }
+
+      // Event listeners
+      startBtn.addEventListener("click", startGame);
+
+      // Initialize the game on load
+      initializeGrid();
+    </script>
+  </body>
+</html>

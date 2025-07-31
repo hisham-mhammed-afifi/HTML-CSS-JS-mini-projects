@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logic Lock – Escape the Code</title>
+    <style>
+      /* Global Styles - Retro Terminal Look */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: #0a0a0a;
+        color: #00ff00;
+        font-family: "Courier New", monospace;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+
+      /* Main Game Container */
+      .game-container {
+        width: 90%;
+        max-width: 800px;
+        background-color: #000;
+        border: 2px solid #00ff00;
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      }
+
+      /* Terminal Header */
+      .terminal-header {
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 24px;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        animation: flicker 2s infinite;
+      }
+
+      /* Console Box for Each Level */
+      .console-box {
+        background-color: #0a0a0a;
+        border: 1px solid #00ff00;
+        border-radius: 5px;
+        padding: 20px;
+        margin-bottom: 20px;
+        position: relative;
+        min-height: 300px;
+      }
+
+      .level-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 14px;
+        opacity: 0.7;
+      }
+
+      /* Puzzle Text with Typing Effect */
+      .puzzle-text {
+        margin: 20px 0;
+        font-size: 16px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        min-height: 100px;
+      }
+
+      /* Input Field Styling */
+      .input-section {
+        margin-top: 20px;
+      }
+
+      .code-input {
+        background-color: #000;
+        border: 1px solid #00ff00;
+        color: #00ff00;
+        padding: 10px;
+        width: 100%;
+        font-family: "Courier New", monospace;
+        font-size: 16px;
+        outline: none;
+        margin-bottom: 15px;
+      }
+
+      .code-input:focus {
+        box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+      }
+
+      /* Submit Button */
+      .submit-btn {
+        background-color: #000;
+        color: #00ff00;
+        border: 2px solid #00ff00;
+        padding: 10px 30px;
+        font-family: "Courier New", monospace;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-transform: uppercase;
+      }
+
+      .submit-btn:hover {
+        background-color: #00ff00;
+        color: #000;
+        box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+      }
+
+      .submit-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Hint/Error Messages */
+      .message-area {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        min-height: 30px;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .message-area.show {
+        opacity: 1;
+      }
+
+      .message-area.error {
+        background-color: rgba(255, 0, 0, 0.1);
+        border: 1px solid #ff0000;
+        color: #ff0000;
+      }
+
+      .message-area.success {
+        background-color: rgba(0, 255, 0, 0.1);
+        border: 1px solid #00ff00;
+        color: #00ff00;
+      }
+
+      /* Timer Display */
+      .timer {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        font-size: 18px;
+        opacity: 0.7;
+      }
+
+      /* Victory Screen */
+      .victory-screen {
+        display: none;
+        text-align: center;
+        padding: 50px;
+      }
+
+      .victory-screen h1 {
+        font-size: 48px;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+      }
+
+      .ascii-art {
+        font-size: 12px;
+        line-height: 1;
+        margin: 30px 0;
+        color: #00ff00;
+      }
+
+      /* Animations */
+      @keyframes flicker {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.8;
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+      }
+
+      .typing-cursor::after {
+        content: "_";
+        animation: blink 1s infinite;
+      }
+
+      @keyframes blink {
+        0%,
+        50% {
+          opacity: 1;
+        }
+        51%,
+        100% {
+          opacity: 0;
+        }
+      }
+
+      /* Scanline Effect */
+      .scanline {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(
+          to bottom,
+          transparent,
+          rgba(0, 255, 0, 0.3),
+          transparent
+        );
+        animation: scanline 8s linear infinite;
+        pointer-events: none;
+      }
+
+      @keyframes scanline {
+        0% {
+          transform: translateY(0);
+        }
+        100% {
+          transform: translateY(100vh);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Scanline Effect -->
+    <div class="scanline"></div>
+
+    <!-- Timer Display -->
+    <div class="timer">Time: <span id="timer-display">00:00</span></div>
+
+    <!-- Main Game Container -->
+    <div class="game-container">
+      <h1 class="terminal-header">Logic Lock - Escape the Code</h1>
+
+      <!-- Game Screen (Levels) -->
+      <div id="game-screen">
+        <div class="console-box">
+          <div class="level-indicator">
+            Level <span id="current-level">1</span>/5
+          </div>
+          <div class="puzzle-text typing-cursor" id="puzzle-text"></div>
+          <div class="input-section">
+            <input
+              type="text"
+              class="code-input"
+              id="answer-input"
+              placeholder="Enter your answer..."
+              autocomplete="off"
+            />
+            <button class="submit-btn" id="submit-btn">SUBMIT</button>
+          </div>
+          <div class="message-area" id="message-area"></div>
+        </div>
+      </div>
+
+      <!-- Victory Screen -->
+      <div class="victory-screen" id="victory-screen">
+        <h1>SYSTEM BREACHED!</h1>
+        <p>You have successfully escaped the Logic Lock!</p>
+        <pre class="ascii-art">
+    _____
+   |     |
+   |  0  |
+   |_____|
+   |_____|
+   |_____|
+  /|_____|\
+ /_________\
+            </pre
+        >
+        <p>Total Time: <span id="final-time">00:00</span></p>
+        <button class="submit-btn" onclick="restartGame()">RESTART GAME</button>
+      </div>
+    </div>
+
+    <script>
+      // Game State Management
+      const gameState = {
+        currentLevel: 1,
+        startTime: Date.now(),
+        attempts: 0,
+        maxAttempts: 3,
+        timerInterval: null,
+      };
+
+      // Puzzle Definitions
+      const puzzles = [
+        {
+          // Level 1: String Reversal
+          id: 1,
+          text: `LEVEL 1: STRING CORRUPTION DETECTED
+
+The system encryption has reversed this password.
+Original output: "drowssap"
+
+What was the input string?`,
+          answer: "password",
+          hints: [
+            "Think about string reversal...",
+            "What word becomes 'drowssap' when reversed?",
+            "Try reversing the given string character by character.",
+          ],
+        },
+        {
+          // Level 2: Binary to Decimal
+          id: 2,
+          text: `LEVEL 2: BINARY LOCK ENGAGED
+
+The security code is hidden in binary:
+01000010
+
+Convert to decimal to unlock.`,
+          answer: "66",
+          hints: [
+            "Binary uses base 2 system...",
+            "Each position represents a power of 2.",
+            "Calculate: 0×128 + 1×64 + 0×32 + 0×16 + 0×8 + 0×4 + 1×2 + 0×1",
+          ],
+        },
+        {
+          // Level 3: JavaScript Logic Fix
+          id: 3,
+          text: `LEVEL 3: LOGIC GATE MALFUNCTION
+
+Fix this broken condition to return true:
+function unlock(x) {
+    return x > 5 && x < 10 && x % 2 === 0;
+}
+
+What value of x makes this true?`,
+          answer: "8",
+          hints: [
+            "Find a number that satisfies all three conditions...",
+            "The number must be greater than 5, less than 10, and even.",
+            "Only one even number exists between 5 and 10.",
+          ],
+        },
+        {
+          // Level 4: Sequence Pattern
+          id: 4,
+          text: `LEVEL 4: SEQUENCE DECODER
+
+Complete the sequence to disable the alarm:
+2, 3, 5, 8, 13, ?
+
+Enter the next number.`,
+          answer: "21",
+          hints: [
+            "Look at the relationship between consecutive numbers...",
+            "Notice: 2+3=5, 3+5=8, 5+8=13...",
+            "This is a famous mathematical sequence.",
+          ],
+        },
+        {
+          // Level 5: Caesar Cipher
+          id: 5,
+          text: `LEVEL 5: FINAL ENCRYPTION
+
+The exit code has been shifted by 3 positions:
+"HVFDSH"
+
+Decrypt the message (shift back by 3).`,
+          answer: "ESCAPE",
+          hints: [
+            "Each letter has been shifted forward by 3 positions...",
+            "H-3=E, V-3=S, F-3=C...",
+            "This is a Caesar cipher with shift of 3.",
+          ],
+        },
+      ];
+
+      // Initialize Game
+      function initGame() {
+        updateTimer();
+        gameState.timerInterval = setInterval(updateTimer, 1000);
+        loadLevel(gameState.currentLevel);
+      }
+
+      // Load Current Level
+      function loadLevel(levelNum) {
+        const puzzle = puzzles[levelNum - 1];
+        document.getElementById("current-level").textContent = levelNum;
+
+        // Clear previous content
+        document.getElementById("answer-input").value = "";
+        document
+          .getElementById("message-area")
+          .classList.remove("show", "error", "success");
+
+        // Type out puzzle text with animation
+        typeText(puzzle.text, "puzzle-text");
+
+        // Reset attempts for new level
+        gameState.attempts = 0;
+      }
+
+      // Typing Animation Effect
+      function typeText(text, elementId) {
+        const element = document.getElementById(elementId);
+        element.textContent = "";
+        let index = 0;
+
+        const typeInterval = setInterval(() => {
+          if (index < text.length) {
+            element.textContent += text.charAt(index);
+            index++;
+          } else {
+            clearInterval(typeInterval);
+            element.classList.remove("typing-cursor");
+          }
+        }, 20);
+      }
+
+      // Check Answer
+      function checkAnswer() {
+        const userAnswer = document.getElementById("answer-input").value.trim();
+        const currentPuzzle = puzzles[gameState.currentLevel - 1];
+        const messageArea = document.getElementById("message-area");
+
+        if (userAnswer.toLowerCase() === currentPuzzle.answer.toLowerCase()) {
+          // Correct answer
+          showMessage("ACCESS GRANTED! Loading next level...", "success");
+
+          // Disable input temporarily
+          document.getElementById("submit-btn").disabled = true;
+          document.getElementById("answer-input").disabled = true;
+
+          setTimeout(() => {
+            if (gameState.currentLevel < puzzles.length) {
+              gameState.currentLevel++;
+              document.getElementById("submit-btn").disabled = false;
+              document.getElementById("answer-input").disabled = false;
+              loadLevel(gameState.currentLevel);
+            } else {
+              // Game completed
+              showVictoryScreen();
+            }
+          }, 2000);
+        } else {
+          // Wrong answer
+          gameState.attempts++;
+          const hintIndex = Math.min(
+            gameState.attempts - 1,
+            currentPuzzle.hints.length - 1
+          );
+          const hint = currentPuzzle.hints[hintIndex];
+
+          if (gameState.attempts >= gameState.maxAttempts) {
+            showMessage(
+              `ACCESS DENIED! Maximum attempts reached. Hint: ${hint}`,
+              "error"
+            );
+          } else {
+            showMessage(
+              `ACCESS DENIED! Attempt ${gameState.attempts}/${gameState.maxAttempts}. Hint: ${hint}`,
+              "error"
+            );
+          }
+        }
+      }
+
+      // Show Message
+      function showMessage(text, type) {
+        const messageArea = document.getElementById("message-area");
+        messageArea.textContent = text;
+        messageArea.className = `message-area show ${type}`;
+      }
+
+      // Show Victory Screen
+      function showVictoryScreen() {
+        clearInterval(gameState.timerInterval);
+        document.getElementById("game-screen").style.display = "none";
+        document.getElementById("victory-screen").style.display = "block";
+        document.getElementById("final-time").textContent =
+          document.getElementById("timer-display").textContent;
+      }
+
+      // Update Timer Display
+      function updateTimer() {
+        const elapsed = Math.floor((Date.now() - gameState.startTime) / 1000);
+        const minutes = Math.floor(elapsed / 60)
+          .toString()
+          .padStart(2, "0");
+        const seconds = (elapsed % 60).toString().padStart(2, "0");
+        document.getElementById(
+          "timer-display"
+        ).textContent = `${minutes}:${seconds}`;
+      }
+
+      // Restart Game
+      function restartGame() {
+        gameState.currentLevel = 1;
+        gameState.startTime = Date.now();
+        gameState.attempts = 0;
+
+        document.getElementById("game-screen").style.display = "block";
+        document.getElementById("victory-screen").style.display = "none";
+        document.getElementById("submit-btn").disabled = false;
+        document.getElementById("answer-input").disabled = false;
+
+        initGame();
+      }
+
+      // Event Listeners
+      document
+        .getElementById("submit-btn")
+        .addEventListener("click", checkAnswer);
+      document
+        .getElementById("answer-input")
+        .addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            checkAnswer();
+          }
+        });
+
+      // Start Game on Load
+      window.onload = initGame;
+    </script>
+  </body>
+</html>

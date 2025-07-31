@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mini City Builder</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #333;
+      }
+
+      .game-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 20px;
+        max-width: 1200px;
+        width: 95%;
+      }
+
+      /* Header with Resources */
+      .game-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: white;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+      }
+
+      .resources {
+        display: flex;
+        gap: 30px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .resource {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 18px;
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 10px 15px;
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+      }
+
+      .resource-icon {
+        font-size: 24px;
+      }
+
+      /* Main Game Layout */
+      .game-main {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+
+      /* Building Toolbox */
+      .toolbox {
+        background: #f7f7f7;
+        border-radius: 15px;
+        padding: 15px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .toolbox h3 {
+        text-align: center;
+        margin-bottom: 15px;
+        color: #444;
+      }
+
+      .building-card {
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: grab;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+
+      .building-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        border-color: #667eea;
+      }
+
+      .building-card.dragging {
+        opacity: 0.5;
+        cursor: grabbing;
+      }
+
+      .building-icon {
+        font-size: 32px;
+        text-align: center;
+        margin-bottom: 8px;
+      }
+
+      .building-name {
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 5px;
+      }
+
+      .building-cost {
+        text-align: center;
+        color: #666;
+        font-size: 14px;
+      }
+
+      .building-info {
+        font-size: 12px;
+        color: #888;
+        text-align: center;
+        margin-top: 5px;
+      }
+
+      /* City Grid */
+      .city-grid-container {
+        background: #f0f0f0;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .city-grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        grid-template-rows: repeat(10, 1fr);
+        gap: 2px;
+        aspect-ratio: 1;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .grid-tile {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        position: relative;
+        transition: all 0.2s ease;
+      }
+
+      .grid-tile.valid-drop {
+        background: #c8f7c5;
+        border-color: #4caf50;
+        transform: scale(1.05);
+      }
+
+      .grid-tile.invalid-drop {
+        background: #ffcdd2;
+        border-color: #f44336;
+      }
+
+      .grid-tile.occupied {
+        background: #e3f2fd;
+        border-color: #2196f3;
+      }
+
+      /* Tooltip */
+      .tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 1000;
+        white-space: nowrap;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .tooltip.show {
+        opacity: 1;
+      }
+
+      /* Animations */
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      .building-placed {
+        animation: bounce 0.5s ease;
+      }
+
+      /* Resource Change Indicators */
+      .resource-change {
+        position: absolute;
+        font-weight: bold;
+        font-size: 16px;
+        animation: floatUp 2s ease-out forwards;
+        pointer-events: none;
+      }
+
+      @keyframes floatUp {
+        0% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-30px);
+        }
+      }
+
+      .resource-change.positive {
+        color: #4caf50;
+      }
+
+      .resource-change.negative {
+        color: #f44336;
+      }
+
+      /* Game Over Modal */
+      .game-over {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        display: none;
+        z-index: 2000;
+      }
+
+      .game-over.show {
+        display: block;
+      }
+
+      .game-over h2 {
+        color: #f44336;
+        margin-bottom: 15px;
+      }
+
+      .game-over button {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+
+      .game-over button:hover {
+        background: #764ba2;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .game-main {
+          grid-template-columns: 1fr;
+        }
+
+        .toolbox {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+
+        .building-card {
+          margin-bottom: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-container">
+      <!-- Header with Resources -->
+      <div class="game-header">
+        <div class="resources">
+          <div class="resource">
+            <span class="resource-icon">💰</span>
+            <span>Money: $<span id="money">500</span></span>
+          </div>
+          <div class="resource">
+            <span class="resource-icon">⚡</span>
+            <span>Energy: <span id="energy">0</span>/s</span>
+          </div>
+          <div class="resource">
+            <span class="resource-icon">🍞</span>
+            <span>Food: <span id="food">0</span></span>
+          </div>
+          <div class="resource">
+            <span class="resource-icon">🧍</span>
+            <span>Population: <span id="population">0</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Game Area -->
+      <div class="game-main">
+        <!-- Building Toolbox -->
+        <div class="toolbox">
+          <h3>Buildings</h3>
+          <div id="building-list"></div>
+        </div>
+
+        <!-- City Grid -->
+        <div class="city-grid-container">
+          <div class="city-grid" id="city-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- Game Over Modal -->
+    <div class="game-over" id="game-over">
+      <h2>Game Over!</h2>
+      <p id="game-over-message">You ran out of resources!</p>
+      <button onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script>
+      // Game State
+      const gameState = {
+        resources: {
+          money: 500,
+          energy: 0,
+          food: 0,
+          population: 0,
+        },
+        grid: Array(10)
+          .fill(null)
+          .map(() => Array(10).fill(null)),
+        buildings: [],
+        energyConsumption: 0,
+        energyProduction: 0,
+      };
+
+      // Building Types Definition
+      const buildingTypes = {
+        house: {
+          id: "house",
+          name: "House",
+          icon: "🏠",
+          cost: 50,
+          description: "Generates 2 population",
+          effects: {
+            population: 2,
+          },
+        },
+        farm: {
+          id: "farm",
+          name: "Farm",
+          icon: "🌾",
+          cost: 100,
+          description: "Generates 5 food/10s",
+          effects: {
+            foodGeneration: 0.5, // 5 food per 10 seconds
+          },
+        },
+        factory: {
+          id: "factory",
+          name: "Factory",
+          icon: "🏭",
+          cost: 200,
+          description: "Uses 2 energy/s, generates \$5/s",
+          effects: {
+            energyConsumption: 2,
+            moneyGeneration: 5,
+          },
+        },
+        powerPlant: {
+          id: "powerPlant",
+          name: "Power Plant",
+          icon: "⚡",
+          cost: 300,
+          description: "Generates 5 energy/s",
+          effects: {
+            energyProduction: 5,
+          },
+        },
+      };
+
+      // Drag and Drop State
+      let draggedBuilding = null;
+      let isDragging = false;
+
+      // Initialize Game
+      function initGame() {
+        createBuildingCards();
+        createGrid();
+        startResourceLoop();
+        updateResourceDisplay();
+      }
+
+      // Create Building Cards in Toolbox
+      function createBuildingCards() {
+        const buildingList = document.getElementById("building-list");
+
+        Object.values(buildingTypes).forEach((building) => {
+          const card = document.createElement("div");
+          card.className = "building-card";
+          card.draggable = true;
+          card.dataset.buildingId = building.id;
+
+          card.innerHTML = `
+                    <div class="building-icon">${building.icon}</div>
+                    <div class="building-name">${building.name}</div>
+                    <div class="building-cost">$${building.cost}</div>
+                    <div class="building-info">${building.description}</div>
+                `;
+
+          // Drag event listeners
+          card.addEventListener("dragstart", handleDragStart);
+          card.addEventListener("dragend", handleDragEnd);
+
+          // Touch events for mobile
+          card.addEventListener("touchstart", handleTouchStart, {
+            passive: false,
+          });
+          card.addEventListener("touchmove", handleTouchMove, {
+            passive: false,
+          });
+          card.addEventListener("touchend", handleTouchEnd);
+
+          // Tooltip
+          card.addEventListener("mouseenter", (e) => showTooltip(e, building));
+          card.addEventListener("mouseleave", hideTooltip);
+
+          buildingList.appendChild(card);
+        });
+      }
+
+      // Create City Grid
+      function createGrid() {
+        const cityGrid = document.getElementById("city-grid");
+
+        for (let row = 0; row < 10; row++) {
+          for (let col = 0; col < 10; col++) {
+            const tile = document.createElement("div");
+            tile.className = "grid-tile";
+            tile.dataset.row = row;
+            tile.dataset.col = col;
+
+            // Drop event listeners
+            tile.addEventListener("dragover", handleDragOver);
+            tile.addEventListener("drop", handleDrop);
+            tile.addEventListener("dragleave", handleDragLeave);
+
+            cityGrid.appendChild(tile);
+          }
+        }
+      }
+
+      // Drag and Drop Handlers
+      function handleDragStart(e) {
+        const buildingId = e.target.dataset.buildingId;
+        draggedBuilding = buildingTypes[buildingId];
+        isDragging = true;
+        e.target.classList.add("dragging");
+
+        // Store building data for drop
+        e.dataTransfer.effectAllowed = "copy";
+        e.dataTransfer.setData("text/plain", buildingId);
+      }
+
+      function handleDragEnd(e) {
+        e.target.classList.remove("dragging");
+        isDragging = false;
+
+        // Clear all grid highlights
+        document.querySelectorAll(".grid-tile").forEach((tile) => {
+          tile.classList.remove("valid-drop", "invalid-drop");
+        });
+      }
+
+      function handleDragOver(e) {
+        e.preventDefault();
+
+        const tile = e.target.closest(".grid-tile");
+        if (!tile) return;
+
+        const row = parseInt(tile.dataset.row);
+        const col = parseInt(tile.dataset.col);
+
+        // Check if placement is valid
+        if (canPlaceBuilding(row, col)) {
+          tile.classList.add("valid-drop");
+          tile.classList.remove("invalid-drop");
+        } else {
+          tile.classList.add("invalid-drop");
+          tile.classList.remove("valid-drop");
+        }
+      }
+
+      function handleDragLeave(e) {
+        const tile = e.target.closest(".grid-tile");
+        if (tile) {
+          tile.classList.remove("valid-drop", "invalid-drop");
+        }
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+
+        const tile = e.target.closest(".grid-tile");
+        if (!tile) return;
+
+        const row = parseInt(tile.dataset.row);
+        const col = parseInt(tile.dataset.col);
+
+        // Clear highlights
+        tile.classList.remove("valid-drop", "invalid-drop");
+
+        // Try to place building
+        if (draggedBuilding && canPlaceBuilding(row, col)) {
+          placeBuilding(draggedBuilding, row, col, tile);
+        }
+
+        draggedBuilding = null;
+      }
+
+      // Touch Event Handlers for Mobile
+      function handleTouchStart(e) {
+        const touch = e.touches[0];
+        const buildingId =
+          e.target.closest(".building-card").dataset.buildingId;
+        draggedBuilding = buildingTypes[buildingId];
+        isDragging = true;
+      }
+
+      function handleTouchMove(e) {
+        e.preventDefault();
+        // Implement touch drag visualization if needed
+      }
+
+      function handleTouchEnd(e) {
+        const touch = e.changedTouches[0];
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        const tile = element?.closest(".grid-tile");
+
+        if (tile && draggedBuilding) {
+          const row = parseInt(tile.dataset.row);
+          const col = parseInt(tile.dataset.col);
+
+          if (canPlaceBuilding(row, col)) {
+            placeBuilding(draggedBuilding, row, col, tile);
+          }
+        }
+
+        draggedBuilding = null;
+        isDragging = false;
+      }
+
+      // Building Placement Logic
+      function canPlaceBuilding(row, col) {
+        // Check if tile is empty
+        if (gameState.grid[row][col] !== null) {
+          return false;
+        }
+
+        // Check if player has enough money
+        if (gameState.resources.money < draggedBuilding.cost) {
+          return false;
+        }
+
+        return true;
+      }
+
+      function placeBuilding(building, row, col, tile) {
+        // Deduct cost
+        updateResource("money", -building.cost);
+
+        // Place building in grid
+        gameState.grid[row][col] = building;
+        gameState.buildings.push({ building, row, col });
+
+        // Update tile appearance
+        tile.innerHTML = `<span class="building-placed">${building.icon}</span>`;
+        tile.classList.add("occupied");
+
+        // Apply building effects
+        applyBuildingEffects(building);
+
+        // Show resource change animation
+        showResourceChange(tile, `-$${building.cost}`, false);
+
+        // Update display
+        updateResourceDisplay();
+      }
+
+      function applyBuildingEffects(building) {
+        const effects = building.effects;
+
+        if (effects.population) {
+          updateResource("population", effects.population);
+        }
+
+        if (effects.energyProduction) {
+          gameState.energyProduction += effects.energyProduction;
+        }
+
+        if (effects.energyConsumption) {
+          gameState.energyConsumption += effects.energyConsumption;
+        }
+      }
+
+      // Resource Management
+      function updateResource(resource, amount) {
+        gameState.resources[resource] += amount;
+
+        // Check for game over conditions
+        if (gameState.resources.money < 0) {
+          gameOver("You ran out of money!");
+        }
+      }
+
+      function updateResourceDisplay() {
+        document.getElementById("money").textContent = Math.floor(
+          gameState.resources.money
+        );
+        document.getElementById("energy").textContent =
+          gameState.energyProduction - gameState.energyConsumption;
+        document.getElementById("food").textContent = Math.floor(
+          gameState.resources.food
+        );
+        document.getElementById("population").textContent =
+          gameState.resources.population;
+      }
+
+      // Resource Loop - Updates every second
+      function startResourceLoop() {
+        setInterval(() => {
+          // Calculate net energy
+          const netEnergy =
+            gameState.energyProduction - gameState.energyConsumption;
+
+          // Process each building
+          gameState.buildings.forEach(({ building }) => {
+            const effects = building.effects;
+
+            // Money generation (only if enough energy)
+            if (effects.moneyGeneration && netEnergy >= 0) {
+              updateResource("money", effects.moneyGeneration);
+            }
+
+            // Food generation
+            if (effects.foodGeneration) {
+              updateResource("food", effects.foodGeneration);
+            }
+          });
+
+          // Check energy deficit
+          if (netEnergy < 0) {
+            // Penalty for energy deficit
+            updateResource("money", netEnergy * 2); // Lose \$2 per energy deficit
+          }
+
+          updateResourceDisplay();
+        }, 1000);
+      }
+
+      // Visual Effects
+      function showResourceChange(element, text, isPositive) {
+        const change = document.createElement("div");
+        change.className = `resource-change ${
+          isPositive ? "positive" : "negative"
+        }`;
+        change.textContent = text;
+
+        const rect = element.getBoundingClientRect();
+        change.style.left = `${rect.left + rect.width / 2}px`;
+        change.style.top = `${rect.top}px`;
+
+        document.body.appendChild(change);
+
+        setTimeout(() => change.remove(), 2000);
+      }
+
+      function showTooltip(e, building) {
+        const tooltip = document.getElementById("tooltip");
+        const rect = e.target.getBoundingClientRect();
+
+        tooltip.innerHTML = `
+                <strong>${building.name}</strong><br>
+                Cost: $${building.cost}<br>
+                ${building.description}
+            `;
+
+        tooltip.style.left = `${rect.right + 10}px`;
+        tooltip.style.top = `${rect.top}px`;
+        tooltip.classList.add("show");
+      }
+
+      function hideTooltip() {
+        const tooltip = document.getElementById("tooltip");
+        tooltip.classList.remove("show");
+      }
+
+      // Game Over
+      function gameOver(message) {
+        const modal = document.getElementById("game-over");
+        document.getElementById("game-over-message").textContent = message;
+        modal.classList.add("show");
+      }
+
+      function resetGame() {
+        // Reset game state
+        gameState.resources = { money: 500, energy: 0, food: 0, population: 0 };
+        gameState.grid = Array(10)
+          .fill(null)
+          .map(() => Array(10).fill(null));
+        gameState.buildings = [];
+        gameState.energyConsumption = 0;
+        gameState.energyProduction = 0;
+
+        // Clear grid
+        document.querySelectorAll(".grid-tile").forEach((tile) => {
+          tile.innerHTML = "";
+          tile.classList.remove("occupied");
+        });
+
+        // Hide game over modal
+        document.getElementById("game-over").classList.remove("show");
+
+        // Update display
+        updateResourceDisplay();
+      }
+
+      // Start the game
+      initGame();
+    </script>
+  </body>
+</html>

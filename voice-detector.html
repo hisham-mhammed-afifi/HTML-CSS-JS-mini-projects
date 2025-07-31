@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice Activity Detector with Visualization</title>
+    <style>
+      /* Global styles and dark theme */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background-color: #1a1a1a;
+        color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      /* Main container */
+      .container {
+        background-color: #2a2a2a;
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        max-width: 600px;
+        width: 100%;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 2em;
+        background: linear-gradient(45deg, #4a9eff, #00ff88);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      /* Microphone icon container */
+      .mic-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 30px;
+        position: relative;
+      }
+
+      /* Microphone icon with SVG */
+      .mic-icon {
+        width: 120px;
+        height: 120px;
+        background-color: #3a3a3a;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .mic-icon svg {
+        width: 60px;
+        height: 60px;
+        fill: #666;
+        transition: fill 0.3s ease;
+        z-index: 2;
+        position: relative;
+      }
+
+      /* Active state for microphone */
+      .mic-icon.active {
+        background-color: #00ff88;
+        box-shadow: 0 0 40px rgba(0, 255, 136, 0.6);
+        animation: pulse 1s infinite;
+      }
+
+      .mic-icon.active svg {
+        fill: #1a1a1a;
+      }
+
+      /* Pulse animation for active state */
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 0 40px rgba(0, 255, 136, 0.6);
+        }
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 0 60px rgba(0, 255, 136, 0.8);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 40px rgba(0, 255, 136, 0.6);
+        }
+      }
+
+      /* Waveform visualization */
+      .waveform {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+      }
+
+      .waveform-bar {
+        width: 4px;
+        height: 20px;
+        background-color: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+        transition: height 0.1s ease;
+      }
+
+      /* Button container */
+      .controls {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      /* Button styles */
+      button {
+        flex: 1;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .start-btn {
+        background: linear-gradient(45deg, #4a9eff, #00ff88);
+        color: #1a1a1a;
+      }
+
+      .start-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(74, 158, 255, 0.4);
+      }
+
+      .stop-btn {
+        background-color: #ff4a4a;
+        color: #ffffff;
+      }
+
+      .stop-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(255, 74, 74, 0.4);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Status display */
+      .status {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 18px;
+        color: #888;
+      }
+
+      .status.speaking {
+        color: #00ff88;
+        font-weight: 600;
+      }
+
+      /* Canvas container for audio visualization */
+      .visualization-container {
+        background-color: #1a1a1a;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      .visualization-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .visualization-title {
+        color: #888;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .visualization-mode {
+        display: flex;
+        gap: 10px;
+      }
+
+      .mode-btn {
+        padding: 5px 15px;
+        background-color: #3a3a3a;
+        color: #888;
+        border: none;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .mode-btn.active {
+        background-color: #4a9eff;
+        color: #fff;
+      }
+
+      /* Canvas styling */
+      #audioCanvas {
+        width: 100%;
+        height: 200px;
+        border-radius: 10px;
+        background-color: #0a0a0a;
+        display: block;
+      }
+
+      /* Activity log */
+      .activity-log {
+        background-color: #1a1a1a;
+        border-radius: 10px;
+        padding: 20px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .activity-log h3 {
+        margin-bottom: 15px;
+        color: #888;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .log-entry {
+        padding: 8px 0;
+        border-bottom: 1px solid #333;
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .log-entry:last-child {
+        border-bottom: none;
+      }
+
+      .log-entry.speaking {
+        color: #00ff88;
+      }
+
+      .log-entry.silent {
+        color: #888;
+      }
+
+      /* Scrollbar styling */
+      .activity-log::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .activity-log::-webkit-scrollbar-track {
+        background: #1a1a1a;
+        border-radius: 3px;
+      }
+
+      .activity-log::-webkit-scrollbar-thumb {
+        background: #4a4a4a;
+        border-radius: 3px;
+      }
+
+      /* Threshold control */
+      .threshold-control {
+        margin-bottom: 20px;
+        background-color: #1a1a1a;
+        padding: 20px;
+        border-radius: 10px;
+      }
+
+      .threshold-control label {
+        display: block;
+        margin-bottom: 10px;
+        color: #888;
+        font-size: 14px;
+      }
+
+      .threshold-slider {
+        width: 100%;
+        -webkit-appearance: none;
+        appearance: none;
+        height: 6px;
+        background: #3a3a3a;
+        border-radius: 3px;
+        outline: none;
+      }
+
+      .threshold-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: #4a9eff;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .threshold-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        background: #4a9eff;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+      }
+
+      .threshold-value {
+        text-align: center;
+        color: #4a9eff;
+        font-weight: 600;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Voice Activity Detector</h1>
+
+      <!-- Microphone visualization -->
+      <div class="mic-container">
+        <div class="mic-icon" id="micIcon">
+          <!-- Waveform bars -->
+          <div class="waveform" id="waveform">
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+          </div>
+          <!-- Microphone SVG icon -->
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"
+            />
+            <path
+              d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Status display -->
+      <div class="status" id="status">Ready to start</div>
+
+      <!-- Control buttons -->
+      <div class="controls">
+        <button class="start-btn" id="startBtn">Start Detection</button>
+        <button class="stop-btn" id="stopBtn" disabled>Stop Detection</button>
+      </div>
+
+      <!-- Audio visualization canvas -->
+      <div class="visualization-container">
+        <div class="visualization-header">
+          <h3 class="visualization-title">Audio Visualization</h3>
+          <div class="visualization-mode">
+            <button class="mode-btn active" id="waveformMode">Waveform</button>
+            <button class="mode-btn" id="frequencyMode">Frequency</button>
+          </div>
+        </div>
+        <canvas id="audioCanvas"></canvas>
+      </div>
+
+      <!-- Threshold control -->
+      <div class="threshold-control">
+        <label for="thresholdSlider">Sensitivity Threshold</label>
+        <input
+          type="range"
+          id="thresholdSlider"
+          class="threshold-slider"
+          min="10"
+          max="100"
+          value="40"
+          step="5"
+        />
+        <div class="threshold-value" id="thresholdValue">40</div>
+      </div>
+
+      <!-- Activity log -->
+      <div class="activity-log">
+        <h3>Activity Log</h3>
+        <div id="logContainer"></div>
+      </div>
+    </div>
+
+    <script>
+      // Voice Activity Detector with Audio Visualization
+      class VoiceActivityDetector {
+        constructor() {
+          // Audio context and nodes
+          this.audioContext = null;
+          this.microphone = null;
+          this.analyser = null;
+          this.dataArray = null;
+          this.timeDataArray = null; // For waveform visualization
+
+          // Detection parameters
+          this.threshold = 40; // Energy threshold for voice detection
+          this.smoothingTimeConstant = 0.8; // Smoothing for analyser
+          this.fftSize = 2048; // Increased for better visualization
+
+          // State management
+          this.isDetecting = false;
+          this.isSpeaking = false;
+          this.silenceTimeout = null;
+          this.silenceDelay = 500; // Milliseconds before marking as silent
+
+          // Visualization settings
+          this.visualizationMode = "waveform"; // 'waveform' or 'frequency'
+          this.canvas = document.getElementById("audioCanvas");
+          this.canvasCtx = this.canvas.getContext("2d");
+          this.animationId = null;
+
+          // DOM elements
+          this.micIcon = document.getElementById("micIcon");
+          this.status = document.getElementById("status");
+          this.startBtn = document.getElementById("startBtn");
+          this.stopBtn = document.getElementById("stopBtn");
+          this.logContainer = document.getElementById("logContainer");
+          this.thresholdSlider = document.getElementById("thresholdSlider");
+          this.thresholdValue = document.getElementById("thresholdValue");
+          this.waveformBars = document.querySelectorAll(".waveform-bar");
+          this.waveformModeBtn = document.getElementById("waveformMode");
+          this.frequencyModeBtn = document.getElementById("frequencyMode");
+
+          // Event listeners
+          this.startBtn.addEventListener("click", () => this.startDetection());
+          this.stopBtn.addEventListener("click", () => this.stopDetection());
+          this.thresholdSlider.addEventListener("input", (e) => {
+            this.threshold = parseInt(e.target.value);
+            this.thresholdValue.textContent = this.threshold;
+          });
+
+          // Visualization mode switching
+          this.waveformModeBtn.addEventListener("click", () => {
+            this.setVisualizationMode("waveform");
+          });
+          this.frequencyModeBtn.addEventListener("click", () => {
+            this.setVisualizationMode("frequency");
+          });
+
+          // Canvas setup
+          this.setupCanvas();
+          window.addEventListener("resize", () => this.setupCanvas());
+        }
+
+        // Setup canvas dimensions
+        setupCanvas() {
+          // Get the actual dimensions of the canvas container
+          const rect = this.canvas.getBoundingClientRect();
+          const dpr = window.devicePixelRatio || 1;
+
+          // Set canvas size with device pixel ratio for sharp rendering
+          this.canvas.width = rect.width * dpr;
+          this.canvas.height = rect.height * dpr;
+
+          // Scale the context to ensure correct drawing sizes
+          this.canvasCtx.scale(dpr, dpr);
+
+          // Set canvas style dimensions
+          this.canvas.style.width = rect.width + "px";
+          this.canvas.style.height = rect.height + "px";
+        }
+
+        // Switch visualization mode
+        setVisualizationMode(mode) {
+          this.visualizationMode = mode;
+
+          // Update button states
+          if (mode === "waveform") {
+            this.waveformModeBtn.classList.add("active");
+            this.frequencyModeBtn.classList.remove("active");
+          } else {
+            this.frequencyModeBtn.classList.add("active");
+            this.waveformModeBtn.classList.remove("active");
+          }
+        }
+
+        // Initialize audio context and request microphone access
+        async startDetection() {
+          try {
+            // Create audio context if not exists
+            if (!this.audioContext) {
+              this.audioContext = new (window.AudioContext ||
+                window.webkitAudioContext)();
+            }
+
+            // Request microphone access
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+            });
+
+            // Create audio nodes
+            this.microphone = this.audioContext.createMediaStreamSource(stream);
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.smoothingTimeConstant = this.smoothingTimeConstant;
+            this.analyser.fftSize = this.fftSize;
+
+            // Connect nodes
+            this.microphone.connect(this.analyser);
+
+            // Create data arrays for both frequency and time domain data
+            const bufferLength = this.analyser.frequencyBinCount;
+            this.dataArray = new Uint8Array(bufferLength);
+            this.timeDataArray = new Uint8Array(this.analyser.fftSize);
+
+            // Update UI
+            this.isDetecting = true;
+            this.startBtn.disabled = true;
+            this.stopBtn.disabled = false;
+            this.status.textContent = "Listening...";
+
+            // Log start
+            this.addLogEntry("Detection started", "system");
+
+            // Start detection and visualization loops
+            this.detectVoiceActivity();
+          } catch (error) {
+            console.error("Error accessing microphone:", error);
+            this.status.textContent = "Error: Could not access microphone";
+            this.addLogEntry("Error: Microphone access denied", "error");
+          }
+        }
+
+        // Combined detection and visualization loop
+        detectVoiceActivity() {
+          if (!this.isDetecting) return;
+
+          // Get frequency data for VAD
+          this.analyser.getByteFrequencyData(this.dataArray);
+
+          // Calculate average energy/volume for voice detection
+          const average = this.calculateAverageEnergy(this.dataArray);
+
+          // Update mini waveform on mic icon
+          this.updateWaveform(this.dataArray);
+
+          // Voice activity detection logic
+          if (average > this.threshold) {
+            // Voice detected
+            if (!this.isSpeaking) {
+              this.onSpeechStart();
+            }
+
+            // Clear any pending silence timeout
+            if (this.silenceTimeout) {
+              clearTimeout(this.silenceTimeout);
+              this.silenceTimeout = null;
+            }
+          } else {
+            // No voice detected
+            if (this.isSpeaking && !this.silenceTimeout) {
+              // Start silence timeout
+              this.silenceTimeout = setTimeout(() => {
+                this.onSpeechEnd();
+              }, this.silenceDelay);
+            }
+          }
+
+          // Draw visualization based on current mode
+          if (this.visualizationMode === "waveform") {
+            this.drawWaveform();
+          } else {
+            this.drawFrequencyBars();
+          }
+
+          // Continue loop
+          this.animationId = requestAnimationFrame(() =>
+            this.detectVoiceActivity()
+          );
+        }
+
+        // Draw waveform visualization
+        drawWaveform() {
+          // Get time domain data
+          this.analyser.getByteTimeDomainData(this.timeDataArray);
+
+          const width = this.canvas.width / window.devicePixelRatio;
+          const height = this.canvas.height / window.devicePixelRatio;
+
+          // Clear canvas
+          this.canvasCtx.fillStyle = "#0a0a0a";
+          this.canvasCtx.fillRect(0, 0, width, height);
+
+          // Set up line style
+          this.canvasCtx.lineWidth = 2;
+          this.canvasCtx.strokeStyle = this.isSpeaking ? "#00ff88" : "#4a9eff";
+          this.canvasCtx.beginPath();
+
+          // Calculate slice width
+          const sliceWidth = width / this.timeDataArray.length;
+          let x = 0;
+
+          // Draw waveform
+          for (let i = 0; i < this.timeDataArray.length; i++) {
+            const v = this.timeDataArray[i] / 128.0; // Normalize to 0-2
+            const y = (v * height) / 2;
+
+            if (i === 0) {
+              this.canvasCtx.moveTo(x, y);
+            } else {
+              this.canvasCtx.lineTo(x, y);
+            }
+
+            x += sliceWidth;
+          }
+
+          // Complete the line to the end
+          this.canvasCtx.lineTo(width, height / 2);
+          this.canvasCtx.stroke();
+
+          // Add glow effect when speaking
+          if (this.isSpeaking) {
+            this.canvasCtx.shadowBlur = 20;
+            this.canvasCtx.shadowColor = "#00ff88";
+            this.canvasCtx.stroke();
+            this.canvasCtx.shadowBlur = 0;
+          }
+        }
+
+        // Draw frequency bars visualization
+        drawFrequencyBars() {
+          // Get frequency data
+          this.analyser.getByteFrequencyData(this.dataArray);
+
+          const width = this.canvas.width / window.devicePixelRatio;
+          const height = this.canvas.height / window.devicePixelRatio;
+
+          // Clear canvas
+          this.canvasCtx.fillStyle = "#0a0a0a";
+          this.canvasCtx.fillRect(0, 0, width, height);
+
+          // Calculate bar dimensions
+          const barCount = 64; // Number of bars to display
+          const barWidth = width / barCount;
+          const barSpacing = barWidth * 0.2;
+          const barActualWidth = barWidth - barSpacing;
+
+          // Create gradient for bars
+          const gradient = this.canvasCtx.createLinearGradient(0, height, 0, 0);
+          if (this.isSpeaking) {
+            gradient.addColorStop(0, "#00ff88");
+            gradient.addColorStop(1, "#00ffaa");
+          } else {
+            gradient.addColorStop(0, "#4a9eff");
+            gradient.addColorStop(1, "#6ab7ff");
+          }
+
+          this.canvasCtx.fillStyle = gradient;
+
+          // Draw frequency bars
+          const step = Math.floor(this.dataArray.length / barCount);
+
+          for (let i = 0; i < barCount; i++) {
+            const value = this.dataArray[i * step];
+            const barHeight = (value / 255) * height * 0.8; // Scale to 80% of canvas height
+            const x = i * barWidth + barSpacing / 2;
+            const y = height - barHeight;
+
+            // Draw rounded bars
+            this.canvasCtx.beginPath();
+            this.canvasCtx.roundRect(x, y, barActualWidth, barHeight, 2);
+            this.canvasCtx.fill();
+
+            // Add glow effect for higher bars
+            if (barHeight > height * 0.5 && this.isSpeaking) {
+              this.canvasCtx.shadowBlur = 10;
+              this.canvasCtx.shadowColor = "#00ff88";
+              this.canvasCtx.fill();
+              this.canvasCtx.shadowBlur = 0;
+            }
+          }
+        }
+
+        // Calculate average energy from frequency data
+        calculateAverageEnergy(dataArray) {
+          let sum = 0;
+          const length = dataArray.length;
+
+          // Focus on speech frequency range
+          const startBin = 2;
+          const endBin = Math.min(60, length);
+
+          for (let i = startBin; i < endBin; i++) {
+            sum += dataArray[i];
+          }
+
+          return sum / (endBin - startBin);
+        }
+
+        // Update mini waveform on mic icon
+        updateWaveform(dataArray) {
+          const samples = 5;
+          const step = Math.floor(dataArray.length / samples);
+
+          this.waveformBars.forEach((bar, index) => {
+            const value = dataArray[index * step] || 0;
+            const height = Math.max(4, (value / 255) * 40);
+            bar.style.height = `${height}px`;
+          });
+        }
+
+        // Handle speech start event
+        onSpeechStart() {
+          this.isSpeaking = true;
+          this.micIcon.classList.add("active");
+          this.status.textContent = "Speaking...";
+          this.status.classList.add("speaking");
+          this.addLogEntry("Speaking", "speaking");
+        }
+
+        // Handle speech end event
+        onSpeechEnd() {
+          this.isSpeaking = false;
+          this.silenceTimeout = null;
+          this.micIcon.classList.remove("active");
+          this.status.textContent = "Silent";
+          this.status.classList.remove("speaking");
+          this.addLogEntry("Silent", "silent");
+        }
+
+        // Stop voice detection
+        stopDetection() {
+          this.isDetecting = false;
+
+          // Cancel animation frame
+          if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+          }
+
+          // Clear canvas
+          const width = this.canvas.width / window.devicePixelRatio;
+          const height = this.canvas.height / window.devicePixelRatio;
+          this.canvasCtx.fillStyle = "#0a0a0a";
+          this.canvasCtx.fillRect(0, 0, width, height);
+
+          // Clear timeout
+          if (this.silenceTimeout) {
+            clearTimeout(this.silenceTimeout);
+            this.silenceTimeout = null;
+          }
+
+          // Disconnect audio nodes
+          if (this.microphone) {
+            this.microphone.disconnect();
+
+            // Stop all tracks to release microphone
+            if (this.microphone.mediaStream) {
+              this.microphone.mediaStream
+                .getTracks()
+                .forEach((track) => track.stop());
+            }
+
+            this.microphone = null;
+          }
+
+          // Reset UI
+          this.isSpeaking = false;
+          this.micIcon.classList.remove("active");
+          this.status.textContent = "Stopped";
+          this.status.classList.remove("speaking");
+          this.startBtn.disabled = false;
+          this.stopBtn.disabled = true;
+
+          // Reset waveform
+          this.waveformBars.forEach((bar) => {
+            bar.style.height = "20px";
+          });
+
+          // Log stop
+          this.addLogEntry("Detection stopped", "system");
+        }
+
+        // Add entry to activity log
+        addLogEntry(message, type) {
+          const entry = document.createElement("div");
+          entry.className = `log-entry ${type}`;
+
+          const timestamp = new Date().toLocaleTimeString();
+          entry.innerHTML = `
+                    <span>${message}</span>
+                    <span>${timestamp}</span>
+                `;
+
+          this.logContainer.insertBefore(entry, this.logContainer.firstChild);
+
+          // Keep only last 50 entries
+          while (this.logContainer.children.length > 50) {
+            this.logContainer.removeChild(this.logContainer.lastChild);
+          }
+        }
+      }
+
+      // Initialize the Voice Activity Detector when page loads
+      const vad = new VoiceActivityDetector();
+
+      // Polyfill for roundRect if not supported
+      if (!CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function (
+          x,
+          y,
+          w,
+          h,
+          r
+        ) {
+          if (w < 2 * r) r = w / 2;
+          if (h < 2 * r) r = h / 2;
+          this.moveTo(x + r, y);
+          this.arcTo(x + w, y, x + w, y + h, r);
+          this.arcTo(x + w, y + h, x, y + h, r);
+          this.arcTo(x, y + h, x, y, r);
+          this.arcTo(x, y, x + w, y, r);
+          this.closePath();
+        };
+      }
+    </script>
+  </body>
+</html>

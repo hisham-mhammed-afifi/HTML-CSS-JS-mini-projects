@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Typing Trainer App</title>
+    <style>
+      /* General layout and responsive design */
+      body {
+        font-family: "Courier New", Courier, monospace;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+        color: #333;
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      .container {
+        text-align: center;
+        max-width: 800px;
+        width: 90%;
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.3s;
+      }
+
+      h1 {
+        font-size: 2rem;
+        margin-bottom: 20px;
+      }
+
+      /* Paragraph display area */
+      #paragraph {
+        font-size: 1.2rem;
+        line-height: 1.5;
+        margin: 20px 0;
+        padding: 10px;
+        background: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        white-space: pre-wrap;
+        min-height: 60px;
+      }
+
+      /* Character styling for feedback */
+      .char-correct {
+        color: green;
+      }
+      .char-incorrect {
+        color: red !important;
+      }
+      .char-current {
+        background-color: #e0e0e0;
+        text-decoration: underline;
+      }
+      .char-default {
+        color: gray;
+      }
+
+      /* Stats display */
+      #stats {
+        font-size: 1rem;
+        margin: 20px 0;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      /* Buttons styling */
+      button {
+        padding: 10px 20px;
+        font-size: 1rem;
+        cursor: pointer;
+        border: none;
+        background-color: #007bff;
+        color: white;
+        border-radius: 5px;
+        margin: 0 5px;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+
+      /* Dark mode styles */
+      body.dark-mode {
+        background-color: #333;
+        color: #f0f0f0;
+      }
+      body.dark-mode .container {
+        background: #444;
+      }
+      body.dark-mode #paragraph {
+        background: #555;
+        border-color: #666;
+      }
+      body.dark-mode .char-current {
+        background-color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Typing Trainer App</h1>
+      <div id="paragraph"></div>
+      <div id="stats">
+        <span>Time: <span id="time">00:00</span></span>
+        <span>WPM: <span id="wpm">0</span></span>
+        <span>Accuracy: <span id="accuracy">0%</span></span>
+      </div>
+      <button id="newParagraphBtn">New Paragraph</button>
+      <button id="themeToggleBtn">Toggle Theme</button>
+    </div>
+
+    <script>
+      // Global variables for tracking state
+      let paragraphText = "";
+      let currentIndex = 0;
+      let correctChars = 0;
+      let totalTyped = 0;
+      let startTime = null;
+      let timerInterval = null;
+      let isTypingComplete = false;
+
+      // DOM elements
+      const paragraphEl = document.getElementById("paragraph");
+      const timeEl = document.getElementById("time");
+      const wpmEl = document.getElementById("wpm");
+      const accuracyEl = document.getElementById("accuracy");
+      const newParagraphBtn = document.getElementById("newParagraphBtn");
+      const themeToggleBtn = document.getElementById("themeToggleBtn");
+
+      // Sound effects (simple beep using Web Audio API)
+      const audioCtx =
+        typeof AudioContext !== "undefined" ? new AudioContext() : null;
+      function playSound(frequency, duration) {
+        if (!audioCtx) return;
+        const oscillator = audioCtx.createOscillator();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        oscillator.connect(audioCtx.destination);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + duration);
+      }
+
+      // Fetch and load a random paragraph from JSON
+      async function loadParagraph() {
+        try {
+          const response = await fetch("./paragraphs-list.json");
+          if (!response.ok) throw new Error("Failed to load paragraphs");
+          const paragraphs = await response.json();
+          const keys = Object.keys(paragraphs);
+          const randomKey = keys[Math.floor(Math.random() * keys.length)];
+          paragraphText = paragraphs[randomKey];
+          renderParagraph();
+          resetStats();
+        } catch (error) {
+          paragraphEl.innerHTML =
+            "<p>Error loading paragraph. Please try again.</p>";
+          console.error(error);
+        }
+      }
+
+      // Render paragraph with each character in a span for individual styling
+      function renderParagraph() {
+        paragraphEl.innerHTML = "";
+        currentIndex = 0;
+        isTypingComplete = false;
+        paragraphText.split("").forEach((char, index) => {
+          const span = document.createElement("span");
+          span.textContent = char;
+          span.className = index === 0 ? "char-current" : "char-default";
+          paragraphEl.appendChild(span);
+        });
+      }
+
+      // Reset stats and timer for a new attempt
+      function resetStats() {
+        correctChars = 0;
+        totalTyped = 0;
+        startTime = null;
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = null;
+        timeEl.textContent = "00:00";
+        wpmEl.textContent = "0";
+        accuracyEl.textContent = "0%";
+      }
+
+      // Update stats in real-time (time, WPM, accuracy)
+      function updateStats() {
+        if (!startTime) return;
+        const currentTime = new Date();
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+        const minutes = Math.floor(elapsedSeconds / 60);
+        const seconds = elapsedSeconds % 60;
+        timeEl.textContent = `${minutes.toString().padStart(2, "0")}:${seconds
+          .toString()
+          .padStart(2, "0")}`;
+
+        const wpm = minutes > 0 ? Math.round(correctChars / 5 / minutes) : 0;
+        wpmEl.textContent = wpm;
+
+        const accuracy =
+          totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 0;
+        accuracyEl.textContent = `${accuracy}%`;
+      }
+
+      // Handle key press events for typing
+      document.addEventListener("keydown", (event) => {
+        if (isTypingComplete) return;
+
+        // Ignore special keys like Backspace, Arrows, Enter
+        if (
+          event.key.length !== 1 ||
+          event.ctrlKey ||
+          event.altKey ||
+          event.metaKey
+        )
+          return;
+
+        // Start timer on first key press
+        if (!startTime) {
+          startTime = new Date();
+          timerInterval = setInterval(updateStats, 1000);
+        }
+
+        if (currentIndex < paragraphText.length) {
+          const currentChar = paragraphText[currentIndex];
+          const spans = paragraphEl.querySelectorAll("span");
+          totalTyped++;
+
+          // Check if typed key matches current character
+          if (event.key === currentChar) {
+            spans[currentIndex].className = "char-correct";
+            correctChars++;
+            playSound(880, 0.1); // Correct sound (high pitch)
+          } else {
+            spans[currentIndex].className = "char-incorrect";
+            playSound(220, 0.1); // Incorrect sound (low pitch)
+          }
+
+          // Move to next character
+          currentIndex++;
+          if (currentIndex < spans.length) {
+            spans[currentIndex].className = "char-current";
+          }
+
+          // If typing is complete, stop timer and lock input
+          if (currentIndex === paragraphText.length) {
+            isTypingComplete = true;
+            if (timerInterval) clearInterval(timerInterval);
+            updateStats(); // Final update
+            alert(
+              `Typing Complete!\nTime: ${timeEl.textContent}\nWPM: ${wpmEl.textContent}\nAccuracy: ${accuracyEl.textContent}`
+            );
+          }
+        }
+      });
+
+      // New Paragraph button click handler
+      newParagraphBtn.addEventListener("click", loadParagraph);
+
+      // Theme toggle button handler
+      themeToggleBtn.addEventListener("click", () => {
+        document.body.classList.toggle("dark-mode");
+      });
+
+      // Initial load of paragraph
+      loadParagraph();
+    </script>
+  </body>
+</html>

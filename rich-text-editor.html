@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rich Text Editor</title>
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto:wght@400;500&family=Open+Sans:wght@400;600&family=Lato:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* Reset and Base Styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
+        background-color: #f5f5f5;
+        color: #333;
+        line-height: 1.6;
+      }
+
+      /* Container */
+      .editor-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      /* Toolbar Styles */
+      .toolbar {
+        background: #2c3e50;
+        padding: 10px 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        border-bottom: 2px solid #34495e;
+      }
+
+      /* Toolbar Buttons */
+      .toolbar-btn {
+        background: #34495e;
+        border: none;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+      }
+
+      .toolbar-btn:hover {
+        background: #4a5f7a;
+        transform: translateY(-1px);
+      }
+
+      .toolbar-btn:active {
+        transform: translateY(0);
+      }
+
+      .toolbar-btn.active {
+        background: #3498db;
+        box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+      }
+
+      .toolbar-btn:focus {
+        outline: 2px solid #3498db;
+        outline-offset: 2px;
+      }
+
+      /* Toolbar Separators */
+      .toolbar-separator {
+        width: 1px;
+        height: 24px;
+        background: #4a5f7a;
+        margin: 0 5px;
+      }
+
+      /* Dropdowns */
+      .toolbar-select {
+        background: #34495e;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        height: 36px;
+      }
+
+      .toolbar-select:focus {
+        outline: 2px solid #3498db;
+        outline-offset: 2px;
+      }
+
+      /* Color Inputs */
+      .color-input-wrapper {
+        position: relative;
+        display: inline-block;
+      }
+
+      .color-input {
+        width: 36px;
+        height: 36px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        padding: 0;
+        background: #34495e;
+      }
+
+      .color-input::-webkit-color-swatch-wrapper {
+        padding: 4px;
+      }
+
+      .color-input::-webkit-color-swatch {
+        border-radius: 2px;
+        border: 1px solid #4a5f7a;
+      }
+
+      /* Tooltips */
+      .toolbar-btn::after,
+      .color-input-wrapper::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+        margin-bottom: 5px;
+      }
+
+      .toolbar-btn:hover::after,
+      .color-input-wrapper:hover::after {
+        opacity: 1;
+      }
+
+      /* Editor Content Area */
+      .editor-content {
+        min-height: 400px;
+        padding: 20px;
+        font-size: 16px;
+        line-height: 1.8;
+        outline: none;
+        font-family: "Inter", sans-serif;
+      }
+
+      .editor-content:focus {
+        outline: none;
+      }
+
+      .editor-content:empty:before {
+        content: attr(data-placeholder);
+        color: #999;
+        pointer-events: none;
+      }
+
+      /* Editor Content Styles */
+      .editor-content ul,
+      .editor-content ol {
+        margin-left: 20px;
+        margin-bottom: 10px;
+      }
+
+      .editor-content a {
+        color: #3498db;
+        text-decoration: underline;
+      }
+
+      .editor-content img {
+        max-width: 100%;
+        height: auto;
+        margin: 10px 0;
+      }
+
+      .editor-content hr {
+        margin: 20px 0;
+        border: none;
+        border-top: 2px solid #e0e0e0;
+      }
+
+      /* Footer Actions */
+      .editor-footer {
+        background: #ecf0f1;
+        padding: 10px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #ddd;
+      }
+
+      .view-html-btn {
+        background: #3498db;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.3s;
+      }
+
+      .view-html-btn:hover {
+        background: #2980b9;
+      }
+
+      /* HTML View Modal */
+      .html-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        padding: 20px;
+      }
+
+      .html-modal-content {
+        background: white;
+        max-width: 800px;
+        max-height: 80vh;
+        margin: 0 auto;
+        padding: 20px;
+        border-radius: 8px;
+        position: relative;
+        overflow: auto;
+      }
+
+      .html-modal-close {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 18px;
+      }
+
+      .html-output {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        font-family: "Courier New", monospace;
+        font-size: 14px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      /* Toast Notifications */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #2ecc71;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s;
+        z-index: 1001;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Mobile Responsive */
+      @media (max-width: 768px) {
+        .toolbar {
+          padding: 8px;
+          gap: 3px;
+        }
+
+        .toolbar-btn {
+          padding: 6px 8px;
+          font-size: 12px;
+          min-width: 32px;
+          height: 32px;
+        }
+
+        .toolbar-select {
+          padding: 6px 8px;
+          font-size: 12px;
+          height: 32px;
+        }
+
+        .editor-content {
+          padding: 15px;
+          font-size: 14px;
+        }
+
+        .toolbar-separator {
+          margin: 0 3px;
+        }
+      }
+
+      /* Icon Styles */
+      .icon {
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="editor-container">
+      <!-- Toolbar -->
+      <div class="toolbar" role="toolbar" aria-label="Text formatting toolbar">
+        <!-- Text Formatting -->
+        <button
+          class="toolbar-btn"
+          data-command="bold"
+          data-tooltip="Bold (Ctrl+B)"
+          aria-label="Bold"
+        >
+          <strong>B</strong>
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="italic"
+          data-tooltip="Italic (Ctrl+I)"
+          aria-label="Italic"
+        >
+          <em>I</em>
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="underline"
+          data-tooltip="Underline (Ctrl+U)"
+          aria-label="Underline"
+        >
+          <u>U</u>
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="strikeThrough"
+          data-tooltip="Strikethrough"
+          aria-label="Strikethrough"
+        >
+          <s>S</s>
+        </button>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Font Options -->
+        <select class="toolbar-select" id="fontFamily" aria-label="Font family">
+          <option value="">Font</option>
+          <option value="Arial">Arial</option>
+          <option value="Inter">Inter</option>
+          <option value="Roboto">Roboto</option>
+          <option value="Open Sans">Open Sans</option>
+          <option value="Lato">Lato</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Times New Roman">Times</option>
+          <option value="Courier New">Courier</option>
+        </select>
+
+        <select class="toolbar-select" id="fontSize" aria-label="Font size">
+          <option value="">Size</option>
+          <option value="1">Small</option>
+          <option value="2">Normal</option>
+          <option value="3">Medium</option>
+          <option value="4">Large</option>
+          <option value="5">X-Large</option>
+          <option value="6">XX-Large</option>
+          <option value="7">Huge</option>
+        </select>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Colors -->
+        <div class="color-input-wrapper" data-tooltip="Text Color">
+          <input
+            type="color"
+            class="color-input"
+            id="textColor"
+            value="#000000"
+            aria-label="Text color"
+          />
+        </div>
+        <div class="color-input-wrapper" data-tooltip="Background Color">
+          <input
+            type="color"
+            class="color-input"
+            id="bgColor"
+            value="#FFFF00"
+            aria-label="Background color"
+          />
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Alignment -->
+        <button
+          class="toolbar-btn"
+          data-command="justifyLeft"
+          data-tooltip="Align Left"
+          aria-label="Align left"
+        >
+          ◀
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="justifyCenter"
+          data-tooltip="Align Center"
+          aria-label="Align center"
+        >
+          ■
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="justifyRight"
+          data-tooltip="Align Right"
+          aria-label="Align right"
+        >
+          ▶
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="justifyFull"
+          data-tooltip="Justify"
+          aria-label="Justify"
+        >
+          ≡
+        </button>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Lists -->
+        <button
+          class="toolbar-btn"
+          data-command="insertOrderedList"
+          data-tooltip="Ordered List"
+          aria-label="Ordered list"
+        >
+          1.
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="insertUnorderedList"
+          data-tooltip="Unordered List"
+          aria-label="Unordered list"
+        >
+          •
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="indent"
+          data-tooltip="Indent"
+          aria-label="Indent"
+        >
+          →
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="outdent"
+          data-tooltip="Outdent"
+          aria-label="Outdent"
+        >
+          ←
+        </button>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Insert Elements -->
+        <button
+          class="toolbar-btn"
+          data-command="createLink"
+          data-tooltip="Insert Link"
+          aria-label="Insert link"
+        >
+          🔗
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="insertImage"
+          data-tooltip="Insert Image"
+          aria-label="Insert image"
+        >
+          🖼
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="insertHorizontalRule"
+          data-tooltip="Horizontal Rule"
+          aria-label="Insert horizontal rule"
+        >
+          —
+        </button>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Actions -->
+        <button
+          class="toolbar-btn"
+          data-command="undo"
+          data-tooltip="Undo (Ctrl+Z)"
+          aria-label="Undo"
+        >
+          ↶
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="redo"
+          data-tooltip="Redo (Ctrl+Y)"
+          aria-label="Redo"
+        >
+          ↷
+        </button>
+        <button
+          class="toolbar-btn"
+          data-command="removeFormat"
+          data-tooltip="Clear Formatting"
+          aria-label="Clear formatting"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Editor Content Area -->
+      <div
+        class="editor-content"
+        contenteditable="true"
+        data-placeholder="Start typing here..."
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Rich text editor"
+      ></div>
+
+      <!-- Footer -->
+      <div class="editor-footer">
+        <span id="wordCount">Words: 0 | Characters: 0</span>
+        <button class="view-html-btn" onclick="toggleHTMLView()">
+          View HTML
+        </button>
+      </div>
+    </div>
+
+    <!-- HTML View Modal -->
+    <div class="html-modal" id="htmlModal">
+      <div class="html-modal-content">
+        <button class="html-modal-close" onclick="toggleHTMLView()">×</button>
+        <h2>HTML Output</h2>
+        <pre class="html-output" id="htmlOutput"></pre>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // Initialize editor
+      const editor = document.querySelector(".editor-content");
+      const toolbar = document.querySelector(".toolbar");
+      const wordCountEl = document.getElementById("wordCount");
+      const htmlModal = document.getElementById("htmlModal");
+      const htmlOutput = document.getElementById("htmlOutput");
+      const toast = document.getElementById("toast");
+
+      // Focus editor on load
+      editor.focus();
+
+      // Toolbar button click handler
+      toolbar.addEventListener("click", (e) => {
+        if (e.target.classList.contains("toolbar-btn")) {
+          const command = e.target.getAttribute("data-command");
+          handleCommand(command);
+        }
+      });
+
+      // Command handler
+      function handleCommand(command) {
+        switch (command) {
+          case "createLink":
+            insertLink();
+            break;
+          case "insertImage":
+            insertImage();
+            break;
+          default:
+            document.execCommand(command, false, null);
+            break;
+        }
+
+        // Keep focus on editor
+        editor.focus();
+        updateToolbarState();
+      }
+
+      // Insert link with prompt
+      function insertLink() {
+        const url = prompt("Enter URL:");
+        if (url) {
+          const selection = window.getSelection();
+          if (selection.toString()) {
+            document.execCommand("createLink", false, url);
+            showToast("Link inserted successfully!");
+          } else {
+            const link = prompt("Enter link text:");
+            if (link) {
+              document.execCommand(
+                "insertHTML",
+                false,
+                `<a href="${url}" target="_blank">${link}</a>`
+              );
+              showToast("Link inserted successfully!");
+            }
+          }
+        }
+      }
+
+      // Insert image with URL
+      function insertImage() {
+        const url = prompt("Enter image URL:");
+        if (url) {
+          document.execCommand("insertImage", false, url);
+          showToast("Image inserted successfully!");
+        }
+      }
+
+      // Font family change handler
+      document.getElementById("fontFamily").addEventListener("change", (e) => {
+        if (e.target.value) {
+          document.execCommand("fontName", false, e.target.value);
+          editor.focus();
+        }
+      });
+
+      // Font size change handler
+      document.getElementById("fontSize").addEventListener("change", (e) => {
+        if (e.target.value) {
+          document.execCommand("fontSize", false, e.target.value);
+          editor.focus();
+        }
+      });
+
+      // Text color change handler
+      document.getElementById("textColor").addEventListener("change", (e) => {
+        document.execCommand("foreColor", false, e.target.value);
+        editor.focus();
+      });
+
+      // Background color change handler
+      document.getElementById("bgColor").addEventListener("change", (e) => {
+        document.execCommand("backColor", false, e.target.value);
+        editor.focus();
+      });
+
+      // Update toolbar button states
+      function updateToolbarState() {
+        const buttons = toolbar.querySelectorAll(".toolbar-btn");
+        buttons.forEach((button) => {
+          const command = button.getAttribute("data-command");
+          if (command && document.queryCommandState(command)) {
+            button.classList.add("active");
+          } else {
+            button.classList.remove("active");
+          }
+        });
+      }
+
+      // Editor input handler for updating toolbar state and word count
+      editor.addEventListener("input", () => {
+        updateToolbarState();
+        updateWordCount();
+      });
+
+      // Selection change handler
+      document.addEventListener("selectionchange", () => {
+        if (editor.contains(window.getSelection().anchorNode)) {
+          updateToolbarState();
+        }
+      });
+
+      // Update word and character count
+      function updateWordCount() {
+        const text = editor.innerText || "";
+        const words = text
+          .trim()
+          .split(/\s+/)
+          .filter((word) => word.length > 0).length;
+        const characters = text.length;
+        wordCountEl.textContent = `Words: ${words} | Characters: ${characters}`;
+      }
+
+      // Keyboard shortcuts
+      editor.addEventListener("keydown", (e) => {
+        if (e.ctrlKey || e.metaKey) {
+          switch (e.key.toLowerCase()) {
+            case "b":
+              e.preventDefault();
+              document.execCommand("bold");
+              break;
+            case "i":
+              e.preventDefault();
+              document.execCommand("italic");
+              break;
+            case "u":
+              e.preventDefault();
+              document.execCommand("underline");
+              break;
+            case "z":
+              if (!e.shiftKey) {
+                e.preventDefault();
+                document.execCommand("undo");
+              }
+              break;
+            case "y":
+              e.preventDefault();
+              document.execCommand("redo");
+              break;
+          }
+          updateToolbarState();
+        }
+      });
+
+      // Paste handler to maintain formatting
+      editor.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const text =
+          e.clipboardData.getData("text/html") ||
+          e.clipboardData.getData("text/plain");
+        document.execCommand("insertHTML", false, text);
+      });
+
+      // Toggle HTML view
+      function toggleHTMLView() {
+        if (htmlModal.style.display === "block") {
+          htmlModal.style.display = "none";
+        } else {
+          htmlOutput.textContent = editor.innerHTML;
+          htmlModal.style.display = "block";
+        }
+      }
+
+      // Close modal when clicking outside
+      htmlModal.addEventListener("click", (e) => {
+        if (e.target === htmlModal) {
+          htmlModal.style.display = "none";
+        }
+      });
+
+      // Show toast notification
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => {
+          toast.classList.remove("show");
+        }, 3000);
+      }
+
+      // Prevent toolbar buttons from taking focus
+      toolbar.addEventListener("mousedown", (e) => {
+        if (e.target.classList.contains("toolbar-btn")) {
+          e.preventDefault();
+        }
+      });
+
+      // Initialize word count
+      updateWordCount();
+
+      // Auto-save functionality (optional)
+      let saveTimeout;
+      editor.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+          localStorage.setItem("editorContent", editor.innerHTML);
+        }, 1000);
+      });
+
+      // Load saved content on page load
+      window.addEventListener("DOMContentLoaded", () => {
+        const savedContent = localStorage.getItem("editorContent");
+        if (savedContent) {
+          editor.innerHTML = savedContent;
+          updateWordCount();
+        }
+      });
+
+      // Clean up empty paragraphs
+      editor.addEventListener("input", () => {
+        // Remove empty paragraphs with only <br> tags
+        const paragraphs = editor.querySelectorAll("p");
+        paragraphs.forEach((p) => {
+          if (p.innerHTML === "<br>") {
+            p.remove();
+          }
+        });
+      });
+
+      // Handle empty editor placeholder
+      editor.addEventListener("focus", () => {
+        if (editor.textContent.trim() === "") {
+          editor.innerHTML = "";
+        }
+      });
+
+      editor.addEventListener("blur", () => {
+        if (editor.textContent.trim() === "") {
+          editor.innerHTML = "";
+        }
+      });
+    </script>
+  </body>
+</html>

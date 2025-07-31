@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Color Match - Memory Game</title>
+    <style>
+      /* General page styling */
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+      }
+
+      /* Game container */
+      .game-container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 400px;
+        width: 100%;
+      }
+
+      /* Title styling */
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      /* Start button styling */
+      .start-button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        font-size: 18px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-bottom: 20px;
+        transition: background-color 0.3s;
+      }
+
+      .start-button:hover {
+        background-color: #45a049;
+      }
+
+      .start-button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+
+      /* Color grid container */
+      .color-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+        max-width: 300px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      /* Color button styling */
+      .color-button {
+        aspect-ratio: 1;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0;
+        position: relative;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .color-button:active {
+        transform: scale(0.95);
+      }
+
+      /* Disabled state for color buttons during computer turn */
+      .color-button:disabled {
+        cursor: not-allowed;
+      }
+
+      /* Individual color styling */
+      #red {
+        background-color: #ff4444;
+      }
+
+      #blue {
+        background-color: #4444ff;
+      }
+
+      #yellow {
+        background-color: #ffdd00;
+      }
+
+      #green {
+        background-color: #44ff44;
+      }
+
+      /* Flash effect for when colors light up */
+      .flash {
+        opacity: 0.5;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px currentColor !important;
+      }
+
+      /* Score and message display */
+      .info-display {
+        font-size: 18px;
+        color: #333;
+      }
+
+      .score {
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .message {
+        min-height: 25px;
+        color: #666;
+      }
+
+      .game-over {
+        color: #ff4444;
+        font-weight: bold;
+      }
+
+      /* Responsive design for smaller screens */
+      @media (max-width: 480px) {
+        .game-container {
+          padding: 20px;
+        }
+
+        .color-grid {
+          max-width: 250px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-container">
+      <h1>Color Match</h1>
+
+      <!-- Start button to begin the game -->
+      <button class="start-button" id="startBtn" onclick="startGame()">
+        Start Game
+      </button>
+
+      <!-- 2x2 grid of color buttons -->
+      <div class="color-grid">
+        <button
+          class="color-button"
+          id="red"
+          onclick="handleColorClick('red')"
+          disabled
+        ></button>
+        <button
+          class="color-button"
+          id="blue"
+          onclick="handleColorClick('blue')"
+          disabled
+        ></button>
+        <button
+          class="color-button"
+          id="yellow"
+          onclick="handleColorClick('yellow')"
+          disabled
+        ></button>
+        <button
+          class="color-button"
+          id="green"
+          onclick="handleColorClick('green')"
+          disabled
+        ></button>
+      </div>
+
+      <!-- Score and message display area -->
+      <div class="info-display">
+        <div class="score">Score: <span id="scoreValue">0</span></div>
+        <div class="message" id="message">Press Start to begin!</div>
+      </div>
+    </div>
+
+    <script>
+      // Game state variables
+      let sequence = []; // Computer's color sequence
+      let playerSequence = []; // Player's input sequence
+      let score = 0; // Current score (successful rounds)
+      let isPlayerTurn = false; // Flag to track whose turn it is
+      let gameActive = false; // Flag to track if game is running
+
+      // Color array for generating random sequences
+      const colors = ["red", "blue", "yellow", "green"];
+
+      // DOM element references
+      const startBtn = document.getElementById("startBtn");
+      const scoreDisplay = document.getElementById("scoreValue");
+      const messageDisplay = document.getElementById("message");
+      const colorButtons = document.querySelectorAll(".color-button");
+
+      // Start a new game
+      function startGame() {
+        // Reset game state
+        sequence = [];
+        playerSequence = [];
+        score = 0;
+        gameActive = true;
+
+        // Update UI
+        scoreDisplay.textContent = score;
+        messageDisplay.textContent = "Watch the sequence!";
+        messageDisplay.classList.remove("game-over");
+        startBtn.textContent = "Restart";
+
+        // Start first round after a short delay
+        setTimeout(nextRound, 500);
+      }
+
+      // Begin a new round
+      function nextRound() {
+        playerSequence = [];
+        isPlayerTurn = false;
+
+        // Add a new random color to the sequence
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        sequence.push(randomColor);
+
+        // Show the sequence to the player
+        showSequence();
+      }
+
+      // Display the computer's sequence
+      function showSequence() {
+        let delay = 0;
+
+        // Disable all buttons during computer's turn
+        disableColorButtons(true);
+        messageDisplay.textContent = "Watch the sequence!";
+
+        // Flash each color in the sequence
+        sequence.forEach((color, index) => {
+          setTimeout(() => {
+            flashColor(color);
+
+            // After showing the last color, enable player input
+            if (index === sequence.length - 1) {
+              setTimeout(() => {
+                isPlayerTurn = true;
+                disableColorButtons(false);
+                messageDisplay.textContent = "Your turn!";
+              }, 600);
+            }
+          }, delay);
+          delay += 1000; // 1 second between each color
+        });
+      }
+
+      // Flash a color button
+      function flashColor(color) {
+        const button = document.getElementById(color);
+        button.classList.add("flash");
+
+        // Remove flash effect after 600ms
+        setTimeout(() => {
+          button.classList.remove("flash");
+        }, 600);
+      }
+
+      // Handle player's color button clicks
+      function handleColorClick(color) {
+        // Ignore clicks if it's not the player's turn or game is over
+        if (!isPlayerTurn || !gameActive) return;
+
+        // Flash the clicked color
+        flashColor(color);
+
+        // Add to player's sequence
+        playerSequence.push(color);
+
+        // Check if the player's input matches the computer's sequence
+        const currentIndex = playerSequence.length - 1;
+
+        if (playerSequence[currentIndex] !== sequence[currentIndex]) {
+          // Wrong color - game over
+          gameOver();
+        } else if (playerSequence.length === sequence.length) {
+          // Completed the sequence successfully
+          score++;
+          scoreDisplay.textContent = score;
+          isPlayerTurn = false;
+          disableColorButtons(true);
+          messageDisplay.textContent = "Correct! Get ready...";
+
+          // Start next round after a delay
+          setTimeout(nextRound, 1500);
+        }
+      }
+
+      // End the game
+      function gameOver() {
+        gameActive = false;
+        isPlayerTurn = false;
+        disableColorButtons(true);
+
+        // Update UI to show game over state
+        messageDisplay.textContent = `Game Over! Final Score: ${score}`;
+        messageDisplay.classList.add("game-over");
+        startBtn.textContent = "Start Game";
+      }
+
+      // Enable or disable color buttons
+      function disableColorButtons(disabled) {
+        colorButtons.forEach((button) => {
+          button.disabled = disabled;
+        });
+      }
+
+      // Initialize the game on page load
+      window.onload = function () {
+        disableColorButtons(true);
+      };
+    </script>
+  </body>
+</html>

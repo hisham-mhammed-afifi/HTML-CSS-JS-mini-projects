@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Date & Time Range Picker</title>
+    <style>
+      /* ============================================
+           BASE STYLES & CSS RESET
+           ============================================ */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background-color: #f5f7fa;
+        padding: 20px;
+        line-height: 1.6;
+        color: #2c3e50;
+      }
+
+      /* ============================================
+           MAIN CONTAINER & LAYOUT
+           ============================================ */
+      .datetime-range-picker {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        padding: 24px;
+      }
+
+      .picker-header {
+        margin-bottom: 24px;
+      }
+
+      .picker-header h2 {
+        font-size: 24px;
+        color: #2c3e50;
+        margin-bottom: 8px;
+      }
+
+      .picker-header p {
+        color: #7f8c8d;
+        font-size: 14px;
+      }
+
+      /* ============================================
+           INPUT FIELDS & GROUPS
+           ============================================ */
+      .input-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      @media (max-width: 768px) {
+        .input-group {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .input-wrapper {
+        position: relative;
+      }
+
+      .input-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #34495e;
+        font-size: 14px;
+      }
+
+      .datetime-input {
+        width: 100%;
+        padding: 12px 40px 12px 16px;
+        border: 2px solid #e0e6ed;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: white;
+      }
+
+      .datetime-input:hover {
+        border-color: #3498db;
+      }
+
+      .datetime-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+      }
+
+      .datetime-input.error {
+        border-color: #e74c3c;
+      }
+
+      .input-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: #7f8c8d;
+      }
+
+      /* ============================================
+           CALENDAR POPUP
+           ============================================ */
+      .calendar-popup {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e0e6ed;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        padding: 20px;
+        margin-top: 8px;
+        z-index: 1000;
+        display: none;
+        min-width: 320px;
+      }
+
+      .calendar-popup.active {
+        display: block;
+      }
+
+      .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .month-year-display {
+        font-weight: 600;
+        font-size: 16px;
+        color: #2c3e50;
+      }
+
+      .nav-button {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background 0.2s;
+        color: #34495e;
+      }
+
+      .nav-button:hover {
+        background: #ecf0f1;
+      }
+
+      /* ============================================
+           CALENDAR GRID
+           ============================================ */
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        margin-bottom: 16px;
+      }
+
+      .day-header {
+        text-align: center;
+        font-weight: 600;
+        font-size: 12px;
+        color: #7f8c8d;
+        padding: 8px 0;
+      }
+
+      .calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: none;
+        background: none;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.2s;
+        color: #2c3e50;
+      }
+
+      .calendar-day:hover:not(.disabled) {
+        background: #ecf0f1;
+      }
+
+      .calendar-day.today {
+        background: #e3f2fd;
+        color: #2196f3;
+        font-weight: 600;
+      }
+
+      .calendar-day.selected {
+        background: #3498db;
+        color: white;
+        font-weight: 600;
+      }
+
+      .calendar-day.in-range {
+        background: #e3f2fd;
+        color: #2196f3;
+      }
+
+      .calendar-day.disabled {
+        color: #bdc3c7;
+        cursor: not-allowed;
+      }
+
+      .calendar-day.other-month {
+        color: #bdc3c7;
+      }
+
+      /* ============================================
+           TIME PICKER
+           ============================================ */
+      .time-picker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-top: 1px solid #ecf0f1;
+        padding-top: 16px;
+      }
+
+      .time-input {
+        width: 60px;
+        padding: 8px;
+        border: 2px solid #e0e6ed;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .time-input:focus {
+        outline: none;
+        border-color: #3498db;
+      }
+
+      .time-separator {
+        font-weight: 600;
+        color: #7f8c8d;
+      }
+
+      .time-format-toggle {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+
+      .format-button {
+        padding: 6px 12px;
+        border: 1px solid #e0e6ed;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+
+      .format-button.active {
+        background: #3498db;
+        color: white;
+        border-color: #3498db;
+      }
+
+      /* ============================================
+           PRESETS
+           ============================================ */
+      .presets-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #ecf0f1;
+      }
+
+      .preset-button {
+        padding: 8px 16px;
+        border: 1px solid #e0e6ed;
+        background: white;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+
+      .preset-button:hover {
+        background: #ecf0f1;
+        border-color: #bdc3c7;
+      }
+
+      .preset-button:active {
+        transform: scale(0.95);
+      }
+
+      /* ============================================
+           ACTION BUTTONS
+           ============================================ */
+      .action-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary {
+        background: #3498db;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #2980b9;
+      }
+
+      .btn-secondary {
+        background: #ecf0f1;
+        color: #34495e;
+      }
+
+      .btn-secondary:hover {
+        background: #bdc3c7;
+      }
+
+      /* ============================================
+           OUTPUT DISPLAY
+           ============================================ */
+      .output-container {
+        margin-top: 24px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e0e6ed;
+      }
+
+      .output-title {
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #2c3e50;
+      }
+
+      .output-value {
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 14px;
+        color: #34495e;
+        word-break: break-all;
+        line-height: 1.8;
+      }
+
+      /* ============================================
+           ERROR MESSAGES
+           ============================================ */
+      .error-message {
+        color: #e74c3c;
+        font-size: 12px;
+        margin-top: 4px;
+        display: none;
+      }
+
+      .error-message.show {
+        display: block;
+      }
+
+      /* ============================================
+           SETTINGS
+           ============================================ */
+      .settings-container {
+        margin-bottom: 20px;
+        padding: 16px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .setting-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .setting-label {
+        font-size: 14px;
+        color: #34495e;
+      }
+
+      .toggle-switch {
+        position: relative;
+        width: 48px;
+        height: 24px;
+        cursor: pointer;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-slider {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 24px;
+      }
+
+      .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .toggle-slider {
+        background-color: #3498db;
+      }
+
+      input:checked + .toggle-slider:before {
+        transform: translateX(24px);
+      }
+
+      /* ============================================
+           OVERLAY FOR MOBILE
+           ============================================ */
+      .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 999;
+      }
+
+      .overlay.active {
+        display: block;
+      }
+
+      @media (max-width: 768px) {
+        .calendar-popup {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          max-width: 90vw;
+          max-height: 90vh;
+          overflow-y: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="datetime-range-picker">
+      <!-- Header -->
+      <div class="picker-header">
+        <h2>📅 Date & Time Range Picker</h2>
+        <p>Select your desired date and time range</p>
+      </div>
+
+      <!-- Settings -->
+      <div class="settings-container">
+        <div class="setting-item">
+          <span class="setting-label">Week starts on:</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="weekStartToggle" />
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="setting-label" id="weekStartLabel">Sunday</span>
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div class="presets-container">
+        <button class="preset-button" data-preset="today">Today</button>
+        <button class="preset-button" data-preset="yesterday">Yesterday</button>
+        <button class="preset-button" data-preset="last7days">
+          Last 7 Days
+        </button>
+        <button class="preset-button" data-preset="last30days">
+          Last 30 Days
+        </button>
+        <button class="preset-button" data-preset="thisMonth">
+          This Month
+        </button>
+        <button class="preset-button" data-preset="lastMonth">
+          Last Month
+        </button>
+      </div>
+
+      <!-- Date/Time Inputs -->
+      <div class="input-group">
+        <div class="input-wrapper">
+          <label class="input-label" for="startDateTime"
+            >Start Date & Time</label
+          >
+          <input
+            type="text"
+            id="startDateTime"
+            class="datetime-input"
+            readonly
+            placeholder="Select start date & time"
+            aria-label="Start date and time"
+            aria-describedby="startError"
+            role="button"
+          />
+          <span class="input-icon">📅</span>
+          <div id="startError" class="error-message" role="alert"></div>
+
+          <!-- Start Calendar Popup -->
+          <div
+            id="startCalendar"
+            class="calendar-popup"
+            role="dialog"
+            aria-label="Start date picker"
+          >
+            <div class="calendar-header">
+              <button
+                class="nav-button"
+                id="startPrevMonth"
+                aria-label="Previous month"
+              >
+                ‹
+              </button>
+              <span class="month-year-display" id="startMonthYear"></span>
+              <button
+                class="nav-button"
+                id="startNextMonth"
+                aria-label="Next month"
+              >
+                ›
+              </button>
+            </div>
+            <div class="calendar-grid" id="startCalendarGrid"></div>
+            <div class="time-picker">
+              <span>🕒</span>
+              <input
+                type="number"
+                id="startHour"
+                class="time-input"
+                min="1"
+                max="12"
+                value="12"
+                aria-label="Start hour"
+              />
+              <span class="time-separator">:</span>
+              <input
+                type="number"
+                id="startMinute"
+                class="time-input"
+                min="0"
+                max="59"
+                value="00"
+                aria-label="Start minute"
+              />
+              <div class="time-format-toggle">
+                <button class="format-button active" data-format="AM">
+                  AM
+                </button>
+                <button class="format-button" data-format="PM">PM</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-wrapper">
+          <label class="input-label" for="endDateTime">End Date & Time</label>
+          <input
+            type="text"
+            id="endDateTime"
+            class="datetime-input"
+            readonly
+            placeholder="Select end date & time"
+            aria-label="End date and time"
+            aria-describedby="endError"
+            role="button"
+          />
+          <span class="input-icon">📅</span>
+          <div id="endError" class="error-message" role="alert"></div>
+
+          <!-- End Calendar Popup -->
+          <div
+            id="endCalendar"
+            class="calendar-popup"
+            role="dialog"
+            aria-label="End date picker"
+          >
+            <div class="calendar-header">
+              <button
+                class="nav-button"
+                id="endPrevMonth"
+                aria-label="Previous month"
+              >
+                ‹
+              </button>
+              <span class="month-year-display" id="endMonthYear"></span>
+              <button
+                class="nav-button"
+                id="endNextMonth"
+                aria-label="Next month"
+              >
+                ›
+              </button>
+            </div>
+            <div class="calendar-grid" id="endCalendarGrid"></div>
+            <div class="time-picker">
+              <span>🕒</span>
+              <input
+                type="number"
+                id="endHour"
+                class="time-input"
+                min="1"
+                max="12"
+                value="12"
+                aria-label="End hour"
+              />
+              <span class="time-separator">:</span>
+              <input
+                type="number"
+                id="endMinute"
+                class="time-input"
+                min="0"
+                max="59"
+                value="00"
+                aria-label="End minute"
+              />
+              <div class="time-format-toggle">
+                <button class="format-button active" data-format="AM">
+                  AM
+                </button>
+                <button class="format-button" data-format="PM">PM</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn btn-secondary" id="clearButton">Clear</button>
+        <button class="btn btn-primary" id="applyButton">Apply</button>
+      </div>
+
+      <!-- Output Display -->
+      <div class="output-container">
+        <div class="output-title">Selected Range:</div>
+        <div class="output-value" id="outputDisplay">No range selected</div>
+      </div>
+    </div>
+
+    <!-- Overlay for mobile -->
+    <div class="overlay" id="overlay"></div>
+
+    <script>
+      /**
+       * ============================================
+       * DATE & TIME RANGE PICKER
+       * Pure vanilla JavaScript implementation
+       * ============================================
+       */
+
+      class DateTimeRangePicker {
+        constructor(config = {}) {
+          // Configuration with defaults
+          this.config = {
+            weekStartsOnMonday: config.weekStartsOnMonday || false,
+            use24HourFormat: config.use24HourFormat || false,
+            minDate: config.minDate || null,
+            maxDate: config.maxDate || null,
+            defaultRange: config.defaultRange || null,
+            ...config,
+          };
+
+          // State management
+          this.state = {
+            startDate: null,
+            startTime: { hour: 12, minute: 0, format: "AM" },
+            endDate: null,
+            endTime: { hour: 12, minute: 0, format: "PM" },
+            activeCalendar: null,
+            currentStartMonth: new Date(),
+            currentEndMonth: new Date(),
+          };
+
+          // Initialize the component
+          this.init();
+        }
+
+        /**
+         * Initialize all components and event listeners
+         */
+        init() {
+          // Cache DOM elements
+          this.elements = {
+            // Inputs
+            startInput: document.getElementById("startDateTime"),
+            endInput: document.getElementById("endDateTime"),
+
+            // Calendars
+            startCalendar: document.getElementById("startCalendar"),
+            endCalendar: document.getElementById("endCalendar"),
+            startCalendarGrid: document.getElementById("startCalendarGrid"),
+            endCalendarGrid: document.getElementById("endCalendarGrid"),
+
+            // Navigation
+            startPrevMonth: document.getElementById("startPrevMonth"),
+            startNextMonth: document.getElementById("startNextMonth"),
+            endPrevMonth: document.getElementById("endPrevMonth"),
+            endNextMonth: document.getElementById("endNextMonth"),
+            startMonthYear: document.getElementById("startMonthYear"),
+            endMonthYear: document.getElementById("endMonthYear"),
+
+            // Time inputs
+            startHour: document.getElementById("startHour"),
+            startMinute: document.getElementById("startMinute"),
+            endHour: document.getElementById("endHour"),
+            endMinute: document.getElementById("endMinute"),
+
+            // Buttons
+            clearButton: document.getElementById("clearButton"),
+            applyButton: document.getElementById("applyButton"),
+
+            // Output
+            outputDisplay: document.getElementById("outputDisplay"),
+
+            // Settings
+            weekStartToggle: document.getElementById("weekStartToggle"),
+            weekStartLabel: document.getElementById("weekStartLabel"),
+
+            // Overlay
+            overlay: document.getElementById("overlay"),
+
+            // Error messages
+            startError: document.getElementById("startError"),
+            endError: document.getElementById("endError"),
+          };
+
+          // Set up event listeners
+          this.setupEventListeners();
+
+          // Render initial calendars
+          this.renderCalendar("start");
+          this.renderCalendar("end");
+
+          // Apply default range if provided
+          if (this.config.defaultRange) {
+            this.applyDefaultRange();
+          }
+        }
+
+        /**
+         * Set up all event listeners
+         */
+        setupEventListeners() {
+          // Input clicks
+          this.elements.startInput.addEventListener("click", () =>
+            this.openCalendar("start")
+          );
+          this.elements.endInput.addEventListener("click", () =>
+            this.openCalendar("end")
+          );
+
+          // Calendar navigation
+          this.elements.startPrevMonth.addEventListener("click", () =>
+            this.navigateMonth("start", -1)
+          );
+          this.elements.startNextMonth.addEventListener("click", () =>
+            this.navigateMonth("start", 1)
+          );
+          this.elements.endPrevMonth.addEventListener("click", () =>
+            this.navigateMonth("end", -1)
+          );
+          this.elements.endNextMonth.addEventListener("click", () =>
+            this.navigateMonth("end", 1)
+          );
+
+          // Time inputs
+          this.elements.startHour.addEventListener("change", () =>
+            this.updateTime("start")
+          );
+          this.elements.startMinute.addEventListener("change", () =>
+            this.updateTime("start")
+          );
+          this.elements.endHour.addEventListener("change", () =>
+            this.updateTime("end")
+          );
+          this.elements.endMinute.addEventListener("change", () =>
+            this.updateTime("end")
+          );
+
+          // Time format buttons
+          document
+            .querySelectorAll(".time-format-toggle .format-button")
+            .forEach((button) => {
+              button.addEventListener("click", (e) => this.toggleTimeFormat(e));
+            });
+
+          // Action buttons
+          this.elements.clearButton.addEventListener("click", () =>
+            this.clear()
+          );
+          this.elements.applyButton.addEventListener("click", () =>
+            this.apply()
+          );
+
+          // Preset buttons
+          document.querySelectorAll(".preset-button").forEach((button) => {
+            button.addEventListener("click", (e) =>
+              this.applyPreset(e.target.dataset.preset)
+            );
+          });
+
+          // Settings
+          this.elements.weekStartToggle.addEventListener("change", (e) => {
+            this.config.weekStartsOnMonday = e.target.checked;
+            this.elements.weekStartLabel.textContent = e.target.checked
+              ? "Monday"
+              : "Sunday";
+            this.renderCalendar("start");
+            this.renderCalendar("end");
+          });
+
+          // Click outside to close
+          document.addEventListener("click", (e) => this.handleOutsideClick(e));
+
+          // Keyboard navigation
+          document.addEventListener("keydown", (e) =>
+            this.handleKeyboardNavigation(e)
+          );
+
+          // Overlay click (mobile)
+          this.elements.overlay.addEventListener("click", () =>
+            this.closeAllCalendars()
+          );
+        }
+
+        /**
+         * Open a calendar popup
+         */
+        openCalendar(type) {
+          // Close other calendar
+          const otherType = type === "start" ? "end" : "start";
+          this.elements[`${otherType}Calendar`].classList.remove("active");
+
+          // Toggle current calendar
+          const calendar = this.elements[`${type}Calendar`];
+          const isActive = calendar.classList.toggle("active");
+
+          this.state.activeCalendar = isActive ? type : null;
+
+          // Show overlay on mobile
+          if (window.innerWidth <= 768) {
+            this.elements.overlay.classList.toggle("active", isActive);
+          }
+
+          // Focus management
+          if (isActive) {
+            const firstButton = calendar.querySelector(
+              ".calendar-day:not(.disabled)"
+            );
+            if (firstButton) firstButton.focus();
+          }
+        }
+
+        /**
+         * Close all calendar popups
+         */
+        closeAllCalendars() {
+          this.elements.startCalendar.classList.remove("active");
+          this.elements.endCalendar.classList.remove("active");
+          this.elements.overlay.classList.remove("active");
+          this.state.activeCalendar = null;
+        }
+
+        /**
+         * Handle clicks outside calendars
+         */
+        handleOutsideClick(e) {
+          if (this.state.activeCalendar) {
+            const activeCalendar =
+              this.elements[`${this.state.activeCalendar}Calendar`];
+            const activeInput =
+              this.elements[`${this.state.activeCalendar}Input`];
+
+            if (
+              !activeCalendar.contains(e.target) &&
+              e.target !== activeInput
+            ) {
+              this.closeAllCalendars();
+            }
+          }
+        }
+
+        /**
+         * Handle keyboard navigation
+         */
+        handleKeyboardNavigation(e) {
+          if (!this.state.activeCalendar) return;
+
+          const calendar =
+            this.elements[`${this.state.activeCalendar}Calendar`];
+          const focusedElement = document.activeElement;
+
+          switch (e.key) {
+            case "Escape":
+              this.closeAllCalendars();
+              this.elements[`${this.state.activeCalendar}Input`].focus();
+              break;
+
+            case "Tab":
+              // Trap focus within calendar
+              const focusableElements = calendar.querySelectorAll(
+                "button:not([disabled]), input:not([disabled])"
+              );
+              const firstElement = focusableElements[0];
+              const lastElement =
+                focusableElements[focusableElements.length - 1];
+
+              if (e.shiftKey && focusedElement === firstElement) {
+                e.preventDefault();
+                lastElement.focus();
+              } else if (!e.shiftKey && focusedElement === lastElement) {
+                e.preventDefault();
+                firstElement.focus();
+              }
+              break;
+          }
+        }
+
+        /**
+         * Navigate calendar months
+         */
+        navigateMonth(type, direction) {
+          const currentMonth =
+            type === "start"
+              ? this.state.currentStartMonth
+              : this.state.currentEndMonth;
+          const newMonth = new Date(
+            currentMonth.getFullYear(),
+            currentMonth.getMonth() + direction,
+            1
+          );
+
+          if (type === "start") {
+            this.state.currentStartMonth = newMonth;
+          } else {
+            this.state.currentEndMonth = newMonth;
+          }
+
+          this.renderCalendar(type);
+        }
+
+        /**
+         * Render calendar grid
+         */
+        renderCalendar(type) {
+          const currentMonth =
+            type === "start"
+              ? this.state.currentStartMonth
+              : this.state.currentEndMonth;
+          const year = currentMonth.getFullYear();
+          const month = currentMonth.getMonth();
+
+          // Update month/year display
+          const monthNames = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ];
+          this.elements[
+            `${type}MonthYear`
+          ].textContent = `${monthNames[month]} ${year}`;
+
+          // Clear grid
+          const grid = this.elements[`${type}CalendarGrid`];
+          grid.innerHTML = "";
+
+          // Add day headers
+          const dayHeaders = this.config.weekStartsOnMonday
+            ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+          dayHeaders.forEach((day) => {
+            const header = document.createElement("div");
+            header.className = "day-header";
+            header.textContent = day;
+            grid.appendChild(header);
+          });
+
+          // Calculate first day and number of days
+          const firstDay = new Date(year, month, 1);
+          const lastDay = new Date(year, month + 1, 0);
+          const prevLastDay = new Date(year, month, 0);
+
+          let startingDayOfWeek = firstDay.getDay();
+          if (this.config.weekStartsOnMonday) {
+            startingDayOfWeek = (startingDayOfWeek + 6) % 7;
+          }
+
+          // Add previous month's trailing days
+          for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+            const day = prevLastDay.getDate() - i;
+            const button = this.createDayButton(
+              new Date(year, month - 1, day),
+              type,
+              true
+            );
+            grid.appendChild(button);
+          }
+
+          // Add current month's days
+          for (let day = 1; day <= lastDay.getDate(); day++) {
+            const date = new Date(year, month, day);
+            const button = this.createDayButton(date, type, false);
+            grid.appendChild(button);
+          }
+
+          // Add next month's leading days
+          const remainingCells = 42 - grid.children.length + 7; // Include headers
+          for (let day = 1; day <= remainingCells - 7; day++) {
+            const button = this.createDayButton(
+              new Date(year, month + 1, day),
+              type,
+              true
+            );
+            grid.appendChild(button);
+          }
+        }
+
+        /**
+         * Create a day button for the calendar
+         */
+        createDayButton(date, type, isOtherMonth) {
+          const button = document.createElement("button");
+          button.className = "calendar-day";
+          button.textContent = date.getDate();
+          button.setAttribute("aria-label", this.formatDate(date));
+
+          // Add classes
+          if (isOtherMonth) {
+            button.classList.add("other-month");
+          }
+
+          // Check if today
+          if (this.isToday(date)) {
+            button.classList.add("today");
+          }
+
+          // Check if selected
+          const selectedDate =
+            type === "start" ? this.state.startDate : this.state.endDate;
+          if (selectedDate && this.isSameDay(date, selectedDate)) {
+            button.classList.add("selected");
+          }
+
+          // Check if in range
+          if (
+            this.state.startDate &&
+            this.state.endDate &&
+            this.isInRange(date)
+          ) {
+            button.classList.add("in-range");
+          }
+
+          // Check if disabled
+          if (this.isDisabled(date, type)) {
+            button.classList.add("disabled");
+            button.disabled = true;
+          }
+
+          // Add click handler
+          button.addEventListener("click", () => this.selectDate(date, type));
+
+          return button;
+        }
+
+        /**
+         * Select a date
+         */
+        selectDate(date, type) {
+          if (type === "start") {
+            this.state.startDate = date;
+            // If end date is before start date, clear it
+            if (this.state.endDate && this.state.endDate < date) {
+              this.state.endDate = null;
+              this.elements.endInput.value = "";
+            }
+            // Auto-focus end input
+            this.closeAllCalendars();
+            setTimeout(() => this.elements.endInput.click(), 100);
+          } else {
+            this.state.endDate = date;
+            this.closeAllCalendars();
+          }
+
+          this.updateInputDisplay(type);
+          this.renderCalendar("start");
+          this.renderCalendar("end");
+          this.clearErrors();
+        }
+
+        /**
+         * Update time from inputs
+         */
+        updateTime(type) {
+          const hourInput = this.elements[`${type}Hour`];
+          const minuteInput = this.elements[`${type}Minute`];
+
+          // Validate and format hour
+          let hour = parseInt(hourInput.value) || 12;
+          hour = Math.max(1, Math.min(12, hour));
+          hourInput.value = hour;
+
+          // Validate and format minute
+          let minute = parseInt(minuteInput.value) || 0;
+          minute = Math.max(0, Math.min(59, minute));
+          minuteInput.value = minute.toString().padStart(2, "0");
+
+          // Update state
+          this.state[`${type}Time`].hour = hour;
+          this.state[`${type}Time`].minute = minute;
+
+          // Update display if date is selected
+          if (this.state[`${type}Date`]) {
+            this.updateInputDisplay(type);
+          }
+        }
+
+        /**
+         * Toggle time format (AM/PM)
+         */
+        toggleTimeFormat(e) {
+          const button = e.target;
+          const format = button.dataset.format;
+          const timePicker = button.closest(".time-picker");
+          const type = timePicker
+            .closest(".calendar-popup")
+            .id.includes("start")
+            ? "start"
+            : "end";
+
+          // Update active state
+          timePicker.querySelectorAll(".format-button").forEach((btn) => {
+            btn.classList.toggle("active", btn === button);
+          });
+
+          // Update state
+          this.state[`${type}Time`].format = format;
+
+          // Update display if date is selected
+          if (this.state[`${type}Date`]) {
+            this.updateInputDisplay(type);
+          }
+        }
+
+        /**
+         * Update input display with selected date and time
+         */
+        updateInputDisplay(type) {
+          const date = this.state[`${type}Date`];
+          const time = this.state[`${type}Time`];
+
+          if (!date) return;
+
+          const formattedDate = this.formatDate(date);
+          const formattedTime = this.formatTime(time);
+
+          this.elements[
+            `${type}Input`
+          ].value = `${formattedDate}, ${formattedTime}`;
+        }
+
+        /**
+         * Apply preset range
+         */
+        applyPreset(preset) {
+          const now = new Date();
+          const today = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          );
+
+          switch (preset) {
+            case "today":
+              this.state.startDate = new Date(today);
+              this.state.endDate = new Date(today);
+              this.state.startTime = { hour: 12, minute: 0, format: "AM" };
+              this.state.endTime = { hour: 11, minute: 59, format: "PM" };
+              break;
+
+            case "yesterday":
+              const yesterday = new Date(today);
+              yesterday.setDate(yesterday.getDate() - 1);
+              this.state.startDate = new Date(yesterday);
+              this.state.endDate = new Date(yesterday);
+              this.state.startTime = { hour: 12, minute: 0, format: "AM" };
+              this.state.endTime = { hour: 11, minute: 59, format: "PM" };
+              break;
+
+            case "last7days":
+              const sevenDaysAgo = new Date(today);
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+              this.state.startDate = new Date(sevenDaysAgo);
+              this.state.endDate = new Date(today);
+              this.state.startTime = { hour: 12, minute: 0, format: "AM" };
+              this.state.endTime = { hour: 11, minute: 59, format: "PM" };
+              break;
+
+            case "last30days":
+              const thirtyDaysAgo = new Date(today);
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+              this.state.startDate = new Date(thirtyDaysAgo);
+              this.state.endDate = new Date(today);
+              this.state.startTime = { hour: 12, minute: 0, format: "AM" };
+              this.state.endTime = { hour: 11, minute: 59, format: "PM" };
+              break;
+
+            case "thisMonth":
+              const firstDayOfMonth = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                1
+              );
+              const lastDayOfMonth = new Date(
+                today.getFullYear(),
+                today.getMonth() + 1,
+                0
+              );
+              this.state.startDate = new Date(firstDayOfMonth);
+              this.state.endDate = new Date(lastDayOfMonth);
+              this.state.startTime = { hour: 12, minute: 0, format: "AM" };
+              this.state.endTime = { hour: 11, minute: 59, format: "PM" };
+              break;
+
+            case "lastMonth":
+              const firstDayOfLastMonth = new Date(
+                today.getFullYear(),
+                today.getMonth() - 1,
+                1
+              );
+              const lastDayOfLastMonth = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                0
+              );
+              this.state.startDate = new Date(firstDayOfLastMonth);
+              this.state.endDate = new Date(lastDayOfLastMonth);
+              this.state.startTime = { hour: 12, minute: 0, format: "AM" };
+              this.state.endTime = { hour: 11, minute: 59, format: "PM" };
+              break;
+          }
+
+          // Update displays
+          this.updateInputDisplay("start");
+          this.updateInputDisplay("end");
+          this.updateTimeInputs();
+          this.renderCalendar("start");
+          this.renderCalendar("end");
+          this.clearErrors();
+        }
+
+        /**
+         * Update time input fields
+         */
+        updateTimeInputs() {
+          // Start time
+          this.elements.startHour.value = this.state.startTime.hour;
+          this.elements.startMinute.value = this.state.startTime.minute
+            .toString()
+            .padStart(2, "0");
+          document
+            .querySelectorAll("#startCalendar .format-button")
+            .forEach((btn) => {
+              btn.classList.toggle(
+                "active",
+                btn.dataset.format === this.state.startTime.format
+              );
+            });
+
+          // End time
+          this.elements.endHour.value = this.state.endTime.hour;
+          this.elements.endMinute.value = this.state.endTime.minute
+            .toString()
+            .padStart(2, "0");
+          document
+            .querySelectorAll("#endCalendar .format-button")
+            .forEach((btn) => {
+              btn.classList.toggle(
+                "active",
+                btn.dataset.format === this.state.endTime.format
+              );
+            });
+        }
+
+        /**
+         * Clear all selections
+         */
+        clear() {
+          // Reset state
+          this.state.startDate = null;
+          this.state.endDate = null;
+          this.state.startTime = { hour: 12, minute: 0, format: "AM" };
+          this.state.endTime = { hour: 12, minute: 0, format: "PM" };
+
+          // Clear inputs
+          this.elements.startInput.value = "";
+          this.elements.endInput.value = "";
+
+          // Reset time inputs
+          this.updateTimeInputs();
+
+          // Clear output
+          this.elements.outputDisplay.textContent = "No range selected";
+
+          // Re-render calendars
+          this.renderCalendar("start");
+          this.renderCalendar("end");
+
+          // Clear errors
+          this.clearErrors();
+        }
+
+        /**
+         * Apply and validate selection
+         */
+        apply() {
+          if (!this.validate()) {
+            return;
+          }
+
+          // Get ISO strings
+          const startISO = this.getISOString("start");
+          const endISO = this.getISOString("end");
+
+          // Get formatted display
+          const startFormatted = this.getFormattedDateTime("start");
+          const endFormatted = this.getFormattedDateTime("end");
+
+          // Update output
+          this.elements.outputDisplay.innerHTML = `
+                    <strong>ISO Format:</strong><br>
+                    Start: ${startISO}<br>
+                    End: ${endISO}<br><br>
+                    <strong>Display Format:</strong><br>
+                    ${startFormatted} → ${endFormatted}
+                `;
+
+          // Close calendars
+          this.closeAllCalendars();
+
+          // Emit custom event
+          const event = new CustomEvent("dateRangeSelected", {
+            detail: {
+              start: startISO,
+              end: endISO,
+              startFormatted,
+              endFormatted,
+            },
+          });
+          document.dispatchEvent(event);
+        }
+
+        /**
+         * Validate selection
+         */
+        validate() {
+          let isValid = true;
+          this.clearErrors();
+
+          // Check if start date is selected
+          if (!this.state.startDate) {
+            this.showError("start", "Please select a start date");
+            isValid = false;
+          }
+
+          // Check if end date is selected
+          if (!this.state.endDate) {
+            this.showError("end", "Please select an end date");
+            isValid = false;
+          }
+
+          // Check if end is after start
+          if (this.state.startDate && this.state.endDate) {
+            const startDateTime = this.getDateTime("start");
+            const endDateTime = this.getDateTime("end");
+
+            if (endDateTime < startDateTime) {
+              this.showError(
+                "end",
+                "End date/time must be after start date/time"
+              );
+              isValid = false;
+            }
+          }
+
+          return isValid;
+        }
+
+        /**
+         * Show error message
+         */
+        showError(type, message) {
+          const errorElement = this.elements[`${type}Error`];
+          const inputElement = this.elements[`${type}Input`];
+
+          errorElement.textContent = message;
+          errorElement.classList.add("show");
+          inputElement.classList.add("error");
+        }
+
+        /**
+         * Clear all error messages
+         */
+        clearErrors() {
+          this.elements.startError.classList.remove("show");
+          this.elements.endError.classList.remove("show");
+          this.elements.startInput.classList.remove("error");
+          this.elements.endInput.classList.remove("error");
+        }
+
+        /**
+         * Get combined date and time
+         */
+        getDateTime(type) {
+          const date = new Date(this.state[`${type}Date`]);
+          const time = this.state[`${type}Time`];
+
+          let hours = time.hour;
+          if (time.format === "PM" && hours !== 12) {
+            hours += 12;
+          } else if (time.format === "AM" && hours === 12) {
+            hours = 0;
+          }
+
+          date.setHours(hours, time.minute, 0, 0);
+          return date;
+        }
+
+        /**
+         * Get ISO string for date/time
+         */
+        getISOString(type) {
+          const dateTime = this.getDateTime(type);
+          return dateTime.toISOString();
+        }
+
+        /**
+         * Get formatted date/time string
+         */
+        getFormattedDateTime(type) {
+          const date = this.state[`${type}Date`];
+          const time = this.state[`${type}Time`];
+
+          const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+          const monthNames = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ];
+
+          const dayName = dayNames[date.getDay()];
+          const monthName = monthNames[date.getMonth()];
+          const day = date.getDate();
+          const timeStr = this.formatTime(time);
+
+          return `${dayName}, ${monthName} ${day}, ${timeStr}`;
+        }
+
+        /**
+         * Format date for display
+         */
+        formatDate(date) {
+          const monthNames = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ];
+          return `${
+            monthNames[date.getMonth()]
+          } ${date.getDate()}, ${date.getFullYear()}`;
+        }
+
+        /**
+         * Format time for display
+         */
+        formatTime(time) {
+          const hour = time.hour;
+          const minute = time.minute.toString().padStart(2, "0");
+          return `${hour}:${minute} ${time.format}`;
+        }
+
+        /**
+         * Check if date is today
+         */
+        isToday(date) {
+          const today = new Date();
+          return this.isSameDay(date, today);
+        }
+
+        /**
+         * Check if two dates are the same day
+         */
+        isSameDay(date1, date2) {
+          return (
+            date1.getFullYear() === date2.getFullYear() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getDate() === date2.getDate()
+          );
+        }
+
+        /**
+         * Check if date is in selected range
+         */
+        isInRange(date) {
+          if (!this.state.startDate || !this.state.endDate) return false;
+
+          const dateOnly = new Date(
+            date.getFullYear(),
+            date.getMonth(),
+            date.getDate()
+          );
+          const startOnly = new Date(
+            this.state.startDate.getFullYear(),
+            this.state.startDate.getMonth(),
+            this.state.startDate.getDate()
+          );
+          const endOnly = new Date(
+            this.state.endDate.getFullYear(),
+            this.state.endDate.getMonth(),
+            this.state.endDate.getDate()
+          );
+
+          return dateOnly >= startOnly && dateOnly <= endOnly;
+        }
+
+        /**
+         * Check if date should be disabled
+         */
+        isDisabled(date, type) {
+          // Check min/max dates
+          if (this.config.minDate && date < this.config.minDate) return true;
+          if (this.config.maxDate && date > this.config.maxDate) return true;
+
+          // For end date, disable dates before start date
+          if (type === "end" && this.state.startDate) {
+            const startDateOnly = new Date(
+              this.state.startDate.getFullYear(),
+              this.state.startDate.getMonth(),
+              this.state.startDate.getDate()
+            );
+            const dateOnly = new Date(
+              date.getFullYear(),
+              date.getMonth(),
+              date.getDate()
+            );
+            return dateOnly < startDateOnly;
+          }
+
+          return false;
+        }
+
+        /**
+         * Apply default range if configured
+         */
+        applyDefaultRange() {
+          if (this.config.defaultRange === "last24hours") {
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+            this.state.startDate = yesterday;
+            this.state.endDate = now;
+            this.state.startTime = {
+              hour: yesterday.getHours() % 12 || 12,
+              minute: yesterday.getMinutes(),
+              format: yesterday.getHours() >= 12 ? "PM" : "AM",
+            };
+            this.state.endTime = {
+              hour: now.getHours() % 12 || 12,
+              minute: now.getMinutes(),
+              format: now.getHours() >= 12 ? "PM" : "AM",
+            };
+
+            this.updateInputDisplay("start");
+            this.updateInputDisplay("end");
+            this.updateTimeInputs();
+          }
+        }
+      }
+
+      // Initialize the date picker when DOM is ready
+      document.addEventListener("DOMContentLoaded", () => {
+        // Example configuration
+        const picker = new DateTimeRangePicker({
+          weekStartsOnMonday: false,
+          use24HourFormat: false,
+          // minDate: new Date(new Date().setDate(new Date().getDate() - 30)), // Last 30 days
+          // maxDate: new Date(), // Today
+          // defaultRange: 'last24hours'
+        });
+
+        // Listen for selection events
+        document.addEventListener("dateRangeSelected", (e) => {
+          console.log("Date range selected:", e.detail);
+        });
+      });
+    </script>
+  </body>
+</html>
